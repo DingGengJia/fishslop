@@ -1,0 +1,15 @@
+<!doctype html><html><meta charset="utf-8"><title>Whale anatomy review</title><style>body{margin:0;background:#244955;color:#fff;font:14px system-ui}canvas{display:block}nav{position:fixed;top:16px;left:16px;display:flex;gap:8px}button{padding:12px;border:0;border-radius:8px}output{position:fixed;bottom:16px;left:16px}</style><nav><button id="side">Side</button><button id="belly">Underside</button><button id="head">Head detail</button><button id="top">Top</button></nav><output id="info"></output><script type="module">
+import * as THREE from 'three';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+import {createWhale} from '../src/whale-model.js';
+import {consolidateFishMaterials} from '../src/fish-materials.js';
+import {batchMeshes} from '../src/reef.js';
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.toneMapping=THREE.ACESFilmicToneMapping;document.body.append(renderer.domElement);
+const scene=new THREE.Scene();scene.background=new THREE.Color('#244955');const camera=new THREE.PerspectiveCamera(38,innerWidth/innerHeight,.01,50);
+const pm=new THREE.PMREMGenerator(renderer),room=new RoomEnvironment();scene.environment=pm.fromScene(room,.04).texture;scene.environmentIntensity=.36;
+scene.add(new THREE.HemisphereLight('#e0f4ed','#687b69',1.35));const sun=new THREE.DirectionalLight('#fff3d7',2.3);sun.position.set(4,6,4);scene.add(sun);const fill=new THREE.DirectionalLight('#8dd6e5',.7);fill.position.set(-4,1,0);scene.add(fill);
+const whale=createWhale(),pivots=[];whale.traverse(o=>{if(!o.isMesh&&/Pivot/.test(o.name))pivots.push(o);});consolidateFishMaterials(whale);batchMeshes(whale,pivots,true);for(const p of pivots)batchMeshes(p,[],true);scene.add(whale);
+const views={side:[[5,.6,2],[0,0,.1]],belly:[[3,-4,2],[0,0,.35]],head:[[2,.25,1.9],[0,0,.85]],top:[[0,6.3,1],[0,0,-.1]]};
+function view(key){camera.position.set(...views[key][0]);camera.lookAt(...views[key][1]);renderer.render(scene,camera);document.querySelector('#info').textContent=key+' · '+renderer.info.render.triangles+' triangles · '+renderer.info.render.calls+' draw calls';}
+for(const key of Object.keys(views))document.getElementById(key).onclick=()=>view(key);await renderer.compileAsync(scene,camera);view('side');
+</script></html>

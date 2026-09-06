@@ -1,0 +1,10 @@
+<!doctype html><html><meta charset="utf-8"><title>Fishslop rendering benchmark</title><style>body{margin:0;background:#062f39;color:white;font:14px system-ui}canvas{display:block}#result{position:fixed;top:12px;left:12px;padding:14px;background:#05252ee8;max-width:560px;white-space:pre-wrap}</style><canvas id="world"></canvas><output id="result">Loading deterministic 17-resident reef…</output><script type="module">
+import {createWorld} from '../src/scene.js';
+import {createGame,addFish,tick,STEP} from '../src/simulation.js';
+const out=document.querySelector('#result'),g=createGame(7142),params=new URLSearchParams(location.search),count=Math.max(5,Math.min(48,Number(params.get('count'))||17)),mixed=params.has('mixed');let spawn=0;while(g.fish.length<count){addFish(g,spawn++%(mixed?12:3));}
+const w=await createWorld(document.querySelector('canvas'));await w.prepare?.(g);let last=performance.now(),frames=0,times=[],renderTimes=[];
+function frame(now){const dt=(now-last)/1000;last=now;tick(g,{},STEP);const start=performance.now();w.render(g,STEP,true);const duration=performance.now()-start;
+if(frames++>60){times.push(dt*1000);renderTimes.push(duration);}if(times.length<180){requestAnimationFrame(frame);return;}
+times.sort((a,b)=>a-b);renderTimes.sort((a,b)=>a-b);out.textContent=JSON.stringify({residents:g.fish.length,viewport:[innerWidth,innerHeight],pixelRatio:w.renderer.getPixelRatio(),drawCalls:w.renderer.info.render.calls,triangles:w.renderer.info.render.triangles,medianFrameMs:+times[90].toFixed(2),p95FrameMs:+times[171].toFixed(2),medianRenderSubmitMs:+renderTimes[90].toFixed(2),geometries:w.renderer.info.memory.geometries,textures:w.renderer.info.memory.textures},null,2);
+}requestAnimationFrame(frame);
+</script></html>
