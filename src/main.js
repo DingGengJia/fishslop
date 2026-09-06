@@ -14,8 +14,8 @@ document.addEventListener('click',e=>{const button=e.target.closest?.('button');
 const keys=new Set();let drag=null,toastTimer=0,last=performance.now(),accumulator=0,hudTimer=0,saveTimer=0;
 let world;
 const LIGHTING_KEY='fishslop.lighting.v1';
-let nightMode=true;
-try{nightMode=localStorage.getItem(LIGHTING_KEY)!=='day';}catch{}
+let nightMode=false;
+try{nightMode=localStorage.getItem(LIGHTING_KEY)==='night';}catch{}
 function updateLightingUI(){
   document.body.classList.toggle('night',nightMode);
   $('lighting').textContent=nightMode?'☾ 夜晚':'☀ 白天';

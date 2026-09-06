@@ -216,3 +216,10 @@ Increase night spotlight intensity from 75 to 225 and its range from 20 to 45 m.
 Reduce night distance falloff slightly (1.4 to 1.25) and widen the beam half-angle
 from 0.48 to 0.52 radians. Blend these settings during day/night transitions;
 retain daytime values and reuse the same light without extra shadow passes.
+
+## Default daylight (2026-09-06)
+
+User request (original): “默认白天”
+
+Start in daylight when no lighting preference is saved or storage is unavailable.
+Continue restoring an explicitly saved day/night choice after manual switching.
