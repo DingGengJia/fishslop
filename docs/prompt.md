@@ -128,3 +128,20 @@
 当前发布目标为独立 GitHub 仓库及 GitHub Pages。构建子路径为 `/fishslop/`，使用 GitHub Actions 在测试和构建通过后发布。生产站点只包含运行资源，不包含 Blender 源文件。
 
 这是现有环境记录，不包含凭据，也不要求每次任务都部署。复用到其他环境时替换对应配置；协议与入口以实际验证结果为准，当前地址使用 HTTP。具体发布与回滚方法见 README。
+
+### Endless ocean
+
+Keep Atlantis as the origin and allow continuous horizontal exploration. Stream
+seeded reef/kelp/coral regions around the submarine with a fixed-size pool of
+chunks and shared instanced assets. Keep draw calls, geometry and collision-cache
+sizes bounded regardless of distance travelled. Use floating render coordinates
+for the camera, lights and entities; retain finite world coordinates in saves.
+Remove old horizontal clamps from both fish AI and the pilot/camera. Residents
+must follow remote expeditions without losing their individual progress. Supply
+a local radar, direction/distance to Atlantis and return-home control. Preserve
+city collision, day/night effects, economy and old saves. Replace the flat sea
+floor with continuous shelf, dune, slope and trench terrain. Share mesh triangle
+heights with collisions, roots, food/coins and camera clearance. Permit diving
+below the old floor and persist negative heights; retain the surface limit.
+Keep adjacent chunk heights/normals identical and reuse their geometry buffers.
+Describe this as a procedural exploration ocean, not a full physical ocean simulation.

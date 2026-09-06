@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createLighting } from './lighting.js';
-import { clampCameraPosition } from './world-bounds.js';
+import { clampCameraPosition, renderOrigin } from './world-bounds.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createReef, batchMeshes } from './reef.js';
@@ -19,8 +19,8 @@ export async function createWorld(canvas,{night=false}={}){
   const camera=new THREE.PerspectiveCamera(57,innerWidth/innerHeight,.1,130);
   const hemisphere=new THREE.HemisphereLight('#bfe9ee','#365957',1.25);scene.add(hemisphere);
   const sun=new THREE.DirectionalLight('#fff0cf',2.6);sun.position.set(-9,26,9);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);
-  Object.assign(sun.shadow.camera,{left:-27,right:27,top:27,bottom:-27,near:1,far:70});sun.shadow.bias=-.0003;sun.shadow.normalBias=.045;scene.add(sun);
-  const fill=new THREE.DirectionalLight('#8dd6e5',.70);fill.position.set(15,10,-16);scene.add(fill);
+  Object.assign(sun.shadow.camera,{left:-27,right:27,top:27,bottom:-27,near:1,far:70});sun.shadow.bias=-.0003;sun.shadow.normalBias=.045;scene.add(sun,sun.target);
+  const fill=new THREE.DirectionalLight('#8dd6e5',.70);fill.position.set(15,10,-16);scene.add(fill,fill.target);
   const reef=createReef(scene);
   const loader=new GLTFLoader(),base=import.meta.env.BASE_URL;
   const [subAsset,...fishAssets]=await Promise.all(['submarine-lite','goldfish-lite','azure-lite','orchid-lite'].map(name=>loader.loadAsync(`${base}models/${name}.glb`)));
@@ -49,7 +49,7 @@ export async function createWorld(canvas,{night=false}={}){
     group.rotation.order='YXZ';group.rotation.y=f.yaw;
     const instanced=f.type>=10,parts=[];
     if(instanced){if(!instancePools.has(f.type))instancePools.set(f.type,createFishInstances(scene,template.body,MAX_RESIDENTS));body.traverse(o=>{if(o.isMesh)parts.push(o);});}else scene.add(group);
-    return {group,body,instanced,parts,tail:body.getObjectByName('TailPivot'),bell:body.getObjectByName('BellPivot'),arms:body.getObjectByName('ArmsPivot'),fins,length:template.length,swimPhase:f.id*1.7,swimSpeed:0,previous:new THREE.Vector3(f.x,f.y,f.z)};
+    return {group,body,instanced,parts,tail:body.getObjectByName('TailPivot'),bell:body.getObjectByName('BellPivot'),arms:body.getObjectByName('ArmsPivot'),fins,length:template.length,swimPhase:f.id*1.7,swimSpeed:0,previous:new THREE.Vector3(f.x-origin.x,f.y,f.z-origin.z)};
   }
   function sync(map,data,make,update){
     const ids=new Set(data.map(d=>d.id));for(const[id,obj]of map)if(!ids.has(id)){scene.remove(obj.group||obj);map.delete(id);}
@@ -57,16 +57,20 @@ export async function createWorld(canvas,{night=false}={}){
   }
   const bubbleGeometry=new THREE.SphereGeometry(1,12,8),bubbleMaterial=new THREE.MeshPhysicalMaterial({color:'#b1e4df',metalness:.25,roughness:.08,transparent:true,opacity:.23});
   const bubbles=Array.from({length:36},()=>{const m=new THREE.Mesh(bubbleGeometry,bubbleMaterial);m.visible=false;scene.add(m);return {mesh:m,life:0};});let bubbleTimer=0,bubbleIndex=0;
-  const cameraGoal=new THREE.Vector3(),lookGoal=new THREE.Vector3(),lookAt=new THREE.Vector3(),pos=new THREE.Vector3(),velocity=new THREE.Vector3(),exhaust=new THREE.Vector3();let initialized=false,focusType=null;
+  const cameraGoal=new THREE.Vector3(),lookGoal=new THREE.Vector3(),lookAt=new THREE.Vector3(),pos=new THREE.Vector3(),velocity=new THREE.Vector3(),exhaust=new THREE.Vector3();let initialized=false,focusType=null;let origin={x:0,z:0};
   let shadowTimer=0,qualityTimer=0,slowTime=0;
   renderer.shadowMap.autoUpdate=false;
   const metrics={fps:60,drawCalls:0,triangles:0,pixelRatio:renderer.getPixelRatio()};
   function render(g,dt,playing){
-    const t=g.time,s=g.sub;lighting.update(dt);reef.update(t);
-    sub.position.set(s.x,s.y,s.z);sub.rotation.set(s.trim??s.pitch,s.heading??s.yaw,(s.bank??0)+Math.sin(t*1.4)*.012,'YXZ');subModel.position.y=Math.sin(t*1.8)*.025;
+    const t=g.time,s=g.sub,nextOrigin=renderOrigin(s),dx=nextOrigin.x-origin.x,dz=nextOrigin.z-origin.z;
+    if(dx||dz){camera.position.x-=dx;camera.position.z-=dz;lookAt.x-=dx;lookAt.z-=dz;for(const b of bubbles){b.mesh.position.x-=dx;b.mesh.position.z-=dz;}for(const m of fishModels.values()){m.previous.x-=dx;m.previous.z-=dz;}origin=nextOrigin;}
+    lighting.update(dt);reef.update(t,s,origin);
+    const sx=s.x-origin.x,sz=s.z-origin.z;
+    sun.position.set(sx-9,26,sz+9);sun.target.position.set(sx,0,sz);fill.position.set(sx+15,10,sz-16);fill.target.position.set(sx,0,sz);
+    sub.position.set(sx,s.y,sz);sub.rotation.set(s.trim??s.pitch,s.heading??s.yaw,(s.bank??0)+Math.sin(t*1.4)*.012,'YXZ');subModel.position.y=Math.sin(t*1.8)*.025;
     const movement=Math.hypot(s.vx,s.vy,s.vz);rotor.rotation.z+=dt*(4+movement*5);
     sync(fishModels,g.fish,fishModel,(m,f)=>{
-      pos.set(f.x,f.y,f.z);velocity.copy(pos).sub(m.previous);m.previous.copy(pos);m.group.position.copy(pos);
+      pos.set(f.x-origin.x,f.y,f.z-origin.z);velocity.copy(pos).sub(m.previous);m.previous.copy(pos);m.group.position.copy(pos);
       const delta=Math.atan2(Math.sin(f.yaw-m.group.rotation.y),Math.cos(f.yaw-m.group.rotation.y));m.group.rotation.y+=delta*(1-Math.exp(-dt*5));
       const pitch=velocity.length()>.003?Math.atan2(velocity.y,Math.hypot(velocity.x,velocity.z)):0;m.group.rotation.x+=(THREE.MathUtils.clamp(pitch,-.5,.5)-m.group.rotation.x)*Math.min(1,dt*4);
       const sp=speciesOf(f.type),size=sp.length/m.length*adultScale(f.growth);m.group.scale.setScalar(size);
@@ -82,12 +86,12 @@ export async function createWorld(canvas,{night=false}={}){
       if(m.bell){m.group.rotation.x=0;const pulse=Math.sin(swim);m.bell.scale.set(1-pulse*.075,1+pulse*.15,1-pulse*.075);m.arms.rotation.z=Math.sin(swim-.8)*.07;m.body.rotation.y=Math.PI;m.body.rotation.z=Math.sin(swim*.7)*.025;}
       for(let i=0;i<m.fins.length;i++)m.fins[i].rotation.z=Math.sin(swim+.65+i*Math.PI)*(sp.kind==='whale'?.08:sp.kind==='ray'?.28:sp.kind==='turtle'?.38:.30+effort*.08);
     });
-    sync(foodModels,g.food,()=>{const m=new THREE.Mesh(foodGeo,foodMat);scene.add(m);return m;},(m,p)=>{m.position.set(p.x,p.y,p.z);m.rotation.set(t*.8,p.id,t*.4);});
-    sync(coinModels,g.drops,()=>{const group=new THREE.Group();group.add(new THREE.Mesh(coinGeo,coinMat));for(const z of [-.04,.04]){const rim=new THREE.Mesh(ringGeo,ringMat);rim.position.z=z;group.add(rim);const numeral=new THREE.Mesh(numberGeo,ringMat);numeral.position.z=z;group.add(numeral);}scene.add(group);return group;},(m,c)=>{m.position.set(c.x,c.y+Math.sin(t*2+c.id)*.08,c.z);m.rotation.y=t*1.4+c.id;});
+    sync(foodModels,g.food,()=>{const m=new THREE.Mesh(foodGeo,foodMat);scene.add(m);return m;},(m,p)=>{m.position.set(p.x-origin.x,p.y,p.z-origin.z);m.rotation.set(t*.8,p.id,t*.4);});
+    sync(coinModels,g.drops,()=>{const group=new THREE.Group();group.add(new THREE.Mesh(coinGeo,coinMat));for(const z of [-.04,.04]){const rim=new THREE.Mesh(ringGeo,ringMat);rim.position.z=z;group.add(rim);const numeral=new THREE.Mesh(numberGeo,ringMat);numeral.position.z=z;group.add(numeral);}scene.add(group);return group;},(m,c)=>{m.position.set(c.x-origin.x,c.y+Math.sin(t*2+c.id)*.08,c.z-origin.z);m.rotation.y=t*1.4+c.id;});
     const back=playing?4.8:6.2,up=playing?1.5:2.1;
-    cameraGoal.set(s.x+Math.sin(s.yaw)*back,s.y+up-Math.sin(s.pitch)*3,s.z+Math.cos(s.yaw)*back);
-    clampCameraPosition(cameraGoal);
-    lookGoal.set(s.x-Math.sin(s.yaw)*3,s.y+.35+Math.sin(s.pitch)*3,s.z-Math.cos(s.yaw)*3);
+    cameraGoal.set(sx+Math.sin(s.yaw)*back,s.y+up-Math.sin(s.pitch)*3,sz+Math.cos(s.yaw)*back);
+    clampCameraPosition(cameraGoal,origin);
+    lookGoal.set(sx-Math.sin(s.yaw)*3,s.y+.35+Math.sin(s.pitch)*3,sz-Math.cos(s.yaw)*3);
     const observed=focusType===null?null:g.fish.find(f=>f.type===focusType);
     sub.visible=!observed;
     for(const f of g.fish)fishModels.get(f.id).group.visible=!observed||f.type===observed.type;
@@ -95,17 +99,17 @@ export async function createWorld(canvas,{night=false}={}){
     for(const pool of instancePools.values())pool.reset();
     for(const f of g.fish){const m=fishModels.get(f.id);if(m.instanced&&m.group.visible)instancePools.get(f.type).add(m.group,m.parts);}
     for(const pool of instancePools.values())pool.flush();
-    if(observed){const distance=Math.max(.30,speciesOf(observed.type).length*(speciesOf(observed.type).length>=6?.95:1.8));cameraGoal.set(observed.x+distance*.85,observed.y+distance*.28,observed.z+distance*.8);lookGoal.set(observed.x,observed.y,observed.z);clampCameraPosition(cameraGoal);}
+    if(observed){const distance=Math.max(.30,speciesOf(observed.type).length*(speciesOf(observed.type).length>=6?.95:1.8));cameraGoal.set(observed.x-origin.x+distance*.85,observed.y+distance*.28,observed.z-origin.z+distance*.8);lookGoal.set(observed.x-origin.x,observed.y,observed.z-origin.z);clampCameraPosition(cameraGoal,origin);}
     if(!initialized){camera.position.copy(cameraGoal);lookAt.copy(lookGoal);initialized=true;}
-    camera.position.lerp(cameraGoal,1-Math.exp(-dt*(observed?8:3)));lookAt.lerp(lookGoal,1-Math.exp(-dt*(observed?12:5)));camera.lookAt(lookAt);
+    camera.position.lerp(cameraGoal,1-Math.exp(-dt*(observed?8:3)));lookAt.lerp(lookGoal,1-Math.exp(-dt*(observed?12:5)));clampCameraPosition(camera.position,origin);camera.lookAt(lookAt);
     bubbleTimer+=dt;if(bubbleTimer>.055&&movement>.3){bubbleTimer=0;const b=bubbles[bubbleIndex++%bubbles.length];b.life=1.8;b.mesh.position.copy(sub.position).add(exhaust.set(0,-.05,.8).applyQuaternion(sub.quaternion));}
     for(const b of bubbles){b.life-=dt;b.mesh.visible=b.life>0;if(b.life>0){b.mesh.position.y+=dt*.85;b.mesh.scale.setScalar(.035+(1.8-b.life)*.03);}}
     shadowTimer+=dt;if(shadowTimer>=.10){renderer.shadowMap.needsUpdate=true;shadowTimer=0;}
     qualityTimer+=dt;slowTime+=dt>.024?dt:0;
     if(qualityTimer>4){if(slowTime>2&&renderer.getPixelRatio()>.85)renderer.setPixelRatio(Math.max(.85,renderer.getPixelRatio()-.15));qualityTimer=slowTime=0;}
     renderer.render(scene,camera);
-    metrics.fps+=(1/Math.max(dt,.001)-metrics.fps)*.04;metrics.drawCalls=renderer.info.render.calls;metrics.triangles=renderer.info.render.triangles;metrics.pixelRatio=renderer.getPixelRatio();
+    metrics.fps+=(1/Math.max(dt,.001)-metrics.fps)*.04;metrics.drawCalls=renderer.info.render.calls;metrics.triangles=renderer.info.render.triangles;metrics.pixelRatio=renderer.getPixelRatio();metrics.chunks=reef.ocean.count;metrics.chunkSlots=reef.ocean.slots;
   }
   function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));}
-  addEventListener('resize',resize);return {render,renderer,scene,camera,metrics,setNight:lighting.setNight,async prepare(g){for(const f of g.fish)if(!fishModels.has(f.id))fishModels.set(f.id,fishModel(f));await renderer.compileAsync(scene,camera);},focusSpecies(type){focusType=type;},stopObserving(){focusType=null;}};
+  addEventListener('resize',resize);return {render,renderer,scene,camera,metrics,setNight:lighting.setNight,resetCamera(){initialized=false;},async prepare(g){reef.update(g.time,g.sub,origin,true);for(const f of g.fish)if(!fishModels.has(f.id))fishModels.set(f.id,fishModel(f));await renderer.compileAsync(scene,camera);},focusSpecies(type){focusType=type;},stopObserving(){focusType=null;}};
 }

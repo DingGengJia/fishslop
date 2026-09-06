@@ -266,3 +266,46 @@ Reference descriptions: [Florida Museum blacktip reef shark](https://www.florida
 Validation: 25 tests, including a new check that vertical tails extend behind their pivots and dolphin flukes remain horizontal; finite geometry, matching vertex attributes and existing triangle budgets; production build; multi-angle visual inspection and in-game observation checks. All procedural models remain below 10,000 triangles each.
 
 Final local 48-resident benchmark (1422 × 800, pixel ratio 1.25): 466 draw calls, 654,401 triangles, 2.3 ms median CPU submission, 16.5 ms median and 40.8 ms p95 frame interval. Frame pacing was more variable than the earlier revision 8 run; the cause was not isolated, so this is not a claim of improved FPS. Geometry cost stayed close to revision 8.
+
+## Endless ocean exploration
+
+The sanctuary is now the origin of a horizontally streaming ocean. Swim beyond
+Atlantis to discover seeded coral gardens, kelp forests and open reef plains.
+The local radar covers 45 meters around the pilot; its blue marker points home.
+Use **返回起点** to return with your residents, retaining their progress and coins.
+Day/night lighting, feeding, upgrades and existing saves continue to work.
+
+The seabed now rolls from the level Atlantis shelf into dunes, slopes and
+meandering trenches. Water depth varies with the terrain (roughly 15–55 m);
+the submarine can dive below the old zero-height floor. The surface remains at
+21 m, and the HUD reports both depth below the surface and clearance above ground.
+
+- 48 m chunks, a fixed 5×5 window, reusable instance buffers and shared geometry.
+- One chunk populated per render frame during travel; unloaded areas are
+  regenerated from coordinates. No growing list of visited chunks is saved.
+- Procedural rock collision uses the same seeded layouts as rendering.
+- Camera, lights and moving objects render relative to a 512 m floating origin.
+  Save positions remain world coordinates, validated as finite within ±1e12 m.
+- Residents catch up during travel. Those beyond 70 m rejoin outside the nearby
+  view; their identity, feeding progress and economy are retained.
+- The original city remains a fixed landmark. New regions currently provide
+  terrain, reefs and vegetation, not additional cities or quests.
+
+Validation: `npm test` includes distant travel/save recovery, original city
+collision, regeneration, floating origin, home return and instance-buffer reuse.
+`/tools/ocean-review.html` is a disposable visual test scene with buttons for
+10 km travel, extreme coordinates and 100 streamed transitions; it does not
+write the player's save. Preview local save reads a copy only.
+
+### Seabed terrain
+
+Each reused chunk owns a 2 m terrain grid. Shared world-coordinate heights and
+edge normals prevent cracks and lighting seams; triangle interpolation provides
+the same ground height for simulation, asset roots and camera clearance. Sand
+colors vary by slope and depth. Rocks retain matching rendered/collision heights.
+Food and coins settle on local ground, fish respect ground clearance, and saves
+accept negative underwater heights. Atlantis stays on its original level shelf.
+
+Terrain checks cover adjacent mesh seams, collision/mesh agreement, diving,
+negative-height saves, floor contact for food/coins and geometry reuse. In
+`/tools/ocean-review.html`, **Dive into trench** previews a 47.5 m deep channel.

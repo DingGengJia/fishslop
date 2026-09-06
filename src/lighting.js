@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 // Lighting changes do not reset the simulation or create lights per fish.
 export function createLighting({scene,renderer,hemisphere,sun,fill,headlight,reef,templates,night=false}){
-  const backgroundDay=new THREE.Color('#073f53'),backgroundNight=new THREE.Color('#020b22');
+  const backgroundDay=new THREE.Color('#075164'),backgroundNight=new THREE.Color('#041631');
   const fogDay=new THREE.Color('#075164'),fogNight=new THREE.Color('#041631');
   const skyDay=new THREE.Color('#bfe9ee'),skyNight=new THREE.Color('#709dd7');
   const groundDay=new THREE.Color('#365957'),groundNight=new THREE.Color('#152e47');

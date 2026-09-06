@@ -1,0 +1,21 @@
+<!doctype html><html><meta charset="utf-8"><title>Fishslop ocean travel check</title><style>body{margin:0;background:#05252e;color:#def;font:12px system-ui}canvas{display:block}aside{position:fixed;top:10px;left:10px;background:#05252edd;padding:12px;max-width:400px}button{padding:8px;margin:3px}output{display:block;white-space:pre-wrap}</style><canvas></canvas><aside><button id="saved">Preview local save</button><button id="travel">Travel 10 km</button><button id="trench">Dive into trench</button><button id="far">Travel 1 million km</button><button id="home">Return home</button><button id="night">Day / night</button><button id="tour">Cross 100 tiles</button><output>Loading…</output></aside><script type="module">
+import {createWorld} from '../src/scene.js';
+import {createGame,ensureDiversity,tick,STEP,restore} from '../src/simulation.js';
+import {seabedHeight} from '../src/terrain.js';
+import {returnToAtlantis} from '../src/ocean-layout.js';
+const g=createGame();ensureDiversity(g);const w=await createWorld(document.querySelector('canvas'));await w.prepare(g);
+let night=false,tour=0,frames=0,times=[],last=performance.now();
+function jump(x,z){const dx=x-g.sub.x,dz=z-g.sub.z;for(const f of g.fish){f.x+=dx;f.z+=dz;f.target.x+=dx;f.target.z+=dz;}Object.assign(g.sub,{x,y:7,z,pitch:0,yaw:0,vx:0,vy:0,vz:0});w.resetCamera();}
+document.querySelector('#saved').onclick=()=>{const save=restore(localStorage.getItem('fishslop.aquarium.v1'));if(save){Object.assign(g,save);w.resetCamera();}};
+document.querySelector('#travel').onclick=()=>jump(10000,-10000);
+document.querySelector('#trench').onclick=()=>{jump(420,-380);g.sub.y=seabedHeight(420,-380)+6;g.sub.pitch=-.25;for(const f of g.fish){f.y=g.sub.y+2;f.target.y=f.y;}};
+document.querySelector('#far').onclick=()=>jump(1e9+.125,-1e9-.375);
+document.querySelector('#home').onclick=()=>{returnToAtlantis(g);w.resetCamera();};
+document.querySelector('#night').onclick=()=>w.setNight(night=!night);
+document.querySelector('#tour').onclick=()=>{tour=100;times=[];};
+function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;if(tour&&frames%12===0){jump(g.sub.x+48,g.sub.z-48);tour--;}
+tick(g,{},STEP);w.render(g,dt,true);frames++;if(frames>60){times.push(dt*1000);if(times.length>180)times.shift();}
+if(frames%20===0){const sorted=[...times].sort((a,b)=>a-b);document.querySelector('output').textContent=JSON.stringify({x:g.sub.x,y:g.sub.y,z:g.sub.z,seabed:seabedHeight(g.sub.x,g.sub.z),camera:w.camera.position.toArray(),yaw:g.sub.yaw,pitch:g.sub.pitch,drawCalls:w.metrics.drawCalls,triangles:w.metrics.triangles,chunks:w.metrics.chunks,slots:w.metrics.chunkSlots,geometries:w.renderer.info.memory.geometries,textures:w.renderer.info.memory.textures,medianMs:sorted[Math.floor(sorted.length*.5)],p95Ms:sorted[Math.floor(sorted.length*.95)],tourRemaining:tour},null,2);}
+requestAnimationFrame(frame);}
+requestAnimationFrame(frame);
+</script></html>

@@ -4,21 +4,22 @@
 <canvas id="world" aria-label="3D Atlantis sanctuary. Use WASD to pilot, Q and E to change depth, arrow keys to look, and Space to feed."></canvas>
 <div class="vignette"></div>
 <header>
-  <a class="brand" href="./" aria-label="Fishslop home"><svg viewBox="0 0 40 30" fill="none"><path d="M29 15c-8-14-20-12-26 0 6 12 18 14 26 0Zm0 0 9-10v20Z" fill="currentColor"/><circle cx="11" cy="12" r="2" fill="#0a2932"/></svg>fishslop<span class="alpha">VOL. 10</span></a>
-  <div class="habitat"><span class="live-dot"></span> ATLANTIS <span class="divider">/</span> THE SUNKEN SANCTUARY</div>
+  <a class="brand" href="./" aria-label="Fishslop home"><svg viewBox="0 0 40 30" fill="none"><path d="M29 15c-8-14-20-12-26 0 6 12 18 14 26 0Zm0 0 9-10v20Z" fill="currentColor"/><circle cx="11" cy="12" r="2" fill="#0a2932"/></svg>fishslop<span class="alpha">VOL. 11</span></a>
+  <div class="habitat"><span class="live-dot"></span> ATLANTIS <span class="divider">/</span> THE ENDLESS OCEAN</div>
   <div class="top-actions"><span id="performance" title="自动调整分辨率以保持流畅">-- FPS</span><button id="lighting" class="lighting-button" title="切换白天 / 黑夜" aria-label="切换至白天" aria-pressed="true">☾ 夜晚</button><button id="sound" class="icon-button" title="Toggle sound" aria-label="Enable sound">♪</button><button id="help" class="icon-button" title="Controls" aria-label="Show controls">?</button><button id="pause" class="icon-button" title="Pause (Esc)" aria-label="Pause game">Ⅱ</button></div>
 </header>
 <main id="hud">
   <aside class="left-panel">
     <div class="eyebrow"><span class="tiny-line"></span> EXPEDITION 001</div>
-    <h1>A lost city.<br/>Alive again<span>.</span></h1>
-    <p class="intro-copy">Drift through the ruins.<br/>Bring the sanctuary to life.</p>
+    <h1>A lost city.<br/>An endless ocean<span>.</span></h1>
+    <p class="intro-copy">Leave the ruins behind.<br/>Follow the reef beyond the horizon.</p>
     <div class="stats"><div><span class="stat-label">YOUR COINS</span><strong class="coin-stat"><span class="coin-icon">✦</span><span id="coins">80</span></strong></div><div><span class="stat-label">HAPPY RESIDENTS</span><strong><span id="population">5</span><small> / 96</small></strong></div></div>
     <div class="mission"><div class="mission-top"><span class="eyebrow">A THRIVING LITTLE REEF</span><span id="mission-percent">0%</span></div><div class="progress-track"><div id="mission-progress"></div></div><p id="mission-description">Raise 10 fish & collect 500 coins</p><div class="mission-steps"><span id="fish-goal">5 / 10 fish</span><span id="coin-goal">0 / 500 coins</span></div></div>
     <div id="welcome"><p>An ancient city. A new beginning.<br/>Care for the life among the ruins.</p><button id="start" class="primary">Let's dive in <span>↗</span></button><span class="welcome-note">Explore the sunken sanctuary. At your own pace.</span></div>
   </aside>
   <div class="tank-caption"><span class="live-dot"></span><span id="scene-state">ATLANTIS LIVE</span><span class="caption-line"></span><span>24°C</span></div>
-  <aside class="telemetry"><div class="sonar-header"><span class="eyebrow">REEF RADAR</span><span class="live-dot"></span></div><canvas id="radar" width="180" height="180" aria-label="Radar: fish in orange, coins in gold, submarine in white"></canvas><div class="depth"><span>DEPTH</span><strong id="depth"><span id="depth-number">13.0</span> <small>m</small></strong></div><div class="health"><span>REEF WELLBEING</span><span id="wellbeing">65%</span><div><i id="wellbeing-bar"></i></div></div></aside>
+  <div class="ocean-navigation"><strong id="ocean-region">亚特兰蒂斯</strong><span id="seabed-clearance">离底 7.0 m</span><span id="home-distance">0 m · 距起点</span><button id="return-home" disabled>⌂ 返回起点</button></div>
+  <aside class="telemetry"><div class="sonar-header"><span class="eyebrow">REEF RADAR</span><span class="live-dot"></span></div><canvas id="radar" width="180" height="180" aria-label="45-meter local radar: fish in orange, coins in gold, submarine in white, home direction in blue"></canvas><div class="depth"><span>DEPTH</span><strong id="depth"><span id="depth-number">13.0</span> <small>m</small></strong></div><div class="health"><span>REEF WELLBEING</span><span id="wellbeing">65%</span><div><i id="wellbeing-bar"></i></div></div></aside>
   <button id="stop-observing" hidden>返回驾驶 · WASD</button><div id="reticle"><i></i><span>SCOUT–01</span></div>
   <div id="toast" role="status" aria-live="polite"></div>
   <button id="dock-toggle" aria-label="Open aquarium shop" aria-expanded="false">⌂ <span>The dock</span><kbd>B</kbd></button>

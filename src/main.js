@@ -1,5 +1,7 @@
 import './style.css';
-import {createGame,ensureDiversity,tick,STEP,buy,canAddSpecies,feed,price,serialize,restore,clamp,BOUNDS} from './simulation.js';
+import {seabedHeight} from './terrain.js';
+import {createGame,ensureDiversity,tick,STEP,buy,canAddSpecies,feed,price,serialize,restore,clamp} from './simulation.js';
+import {BIOMES,chunkAt,oceanBiome,returnToAtlantis} from './ocean-layout.js';
 import {createWorld} from './scene.js';
 import {SPECIES,MAX_RESIDENTS,speciesOf,sizeLabel} from './species.js';
 const $=id=>document.getElementById(id);
@@ -49,6 +51,9 @@ $('close-modal').onclick=closeModal;$('resume').onclick=closeModal;
 $('modal').addEventListener('cancel',e=>{e.preventDefault();closeModal();});
 $('help').onclick=()=>showModal('A small guide to the deep.',controls);
 $('pause').onclick=()=>{if(paused)closeModal();else showModal('Just floating for a moment.',`<p>Your reef is paused and your progress is saved. Take your time — everyone will be right here.</p>`);save();};
+$('return-home').onclick=()=>{
+  stopObserving();keys.clear();returnToAtlantis(game);world?.resetCamera();save();updateHUD();toast('已返回亚特兰蒂斯，鱼群随你一起归航。');
+};
 $('dock-toggle').onclick=()=>{
   const open=document.body.classList.toggle('dock-open');
   $('dock-toggle').setAttribute('aria-expanded',String(open));
@@ -81,6 +86,10 @@ for(const button of document.querySelectorAll('[data-key]')){
 }
 const input=()=>({forward:Number(keys.has('KeyW'))-Number(keys.has('KeyS')),strafe:Number(keys.has('KeyD'))-Number(keys.has('KeyA')),vertical:Number(keys.has('KeyE'))-Number(keys.has('KeyQ')),turn:Number(keys.has('ArrowLeft'))-Number(keys.has('ArrowRight')),pitch:Number(keys.has('ArrowUp'))-Number(keys.has('ArrowDown')),boost:keys.has('ShiftLeft')||keys.has('ShiftRight'),feed:keys.has('Space')});
 function updateHUD(){
+  const homeDistance=Math.hypot(game.sub.x,game.sub.z),cell=chunkAt(game.sub);
+  $('ocean-region').textContent=homeDistance<60?'亚特兰蒂斯':BIOMES[oceanBiome(cell.x,cell.z)];
+  $('home-distance').textContent=(homeDistance<1000?Math.round(homeDistance)+' m':(homeDistance/1000).toFixed(1)+' km')+' · 距起点';
+  $('return-home').disabled=homeDistance<25||paused;
   $('food-ready').textContent=game.cooldown>.05?'Feeding':'Ready';
   $('speed-readout').textContent=Math.hypot(game.sub.vx,game.sub.vy,game.sub.vz).toFixed(1)+' m/s';
   $('nearby-fish').textContent=game.fish.filter(f=>Math.hypot(f.x-game.sub.x,f.y-game.sub.y,f.z-game.sub.z)<10).length+' nearby';
@@ -90,6 +99,7 @@ function updateHUD(){
   $('fish-goal').textContent=`${game.fish.length} / 10 fish`;$('coin-goal').textContent=`${Math.min(500,game.earned)} / 500 coins`;
   if(game.won)$('mission-description').textContent='A thriving reef. Keep making it your own.';
   $('depth-number').textContent=(21-game.sub.y).toFixed(1);
+  $('seabed-clearance').textContent='离底 '+(game.sub.y-seabedHeight(game.sub.x,game.sub.z)).toFixed(1)+' m';
   const sp=speciesOf(Number(speciesSelect.value));$('species-info').textContent=`${game.fish.filter(f=>f.type===sp.id).length} 位居民 · ${game.fish.length} / ${MAX_RESIDENTS}`;
   if(world)$('performance').textContent=Math.round(Math.min(120,world.metrics.fps))+' FPS';
   const health=Math.round((1-game.fish.reduce((n,f)=>n+f.hunger,0)/game.fish.length)*100);
@@ -98,15 +108,17 @@ function updateHUD(){
 
 }
 const radar=$('radar').getContext('2d');
-const radarScale=75/Math.hypot(BOUNDS.x,BOUNDS.z);
+const radarScale=75/45;
 function drawRadar(){const c=radar;c.clearRect(0,0,180,180);c.save();c.translate(90,90);
   for(const r of [27,54,80]){c.beginPath();c.arc(0,0,r,0,Math.PI*2);c.strokeStyle='#a2dcca26';c.lineWidth=.7;c.stroke();}
   c.strokeStyle='#a2dcca19';c.beginPath();c.moveTo(-80,0);c.lineTo(80,0);c.moveTo(0,-80);c.lineTo(0,80);c.stroke();
   c.fillStyle='#94d6c30c';c.beginPath();c.moveTo(0,0);c.arc(0,0,80,game.time*.4,game.time*.4+.5);c.closePath();c.fill();
-  const plot=(p,color,r)=>{c.beginPath();c.arc(p.x*radarScale,p.z*radarScale,r,0,Math.PI*2);c.fillStyle=color;c.fill();};
+  const plot=(p,color,r)=>{const x=(p.x-game.sub.x)*radarScale,z=(p.z-game.sub.z)*radarScale;if(Math.hypot(x,z)>78)return;c.beginPath();c.arc(x,z,r,0,Math.PI*2);c.fillStyle=color;c.fill();};
   for(const f of game.fish)plot(f,f.hunger>.7?'#e7826e':'#dfb892',2);
   for(const p of game.drops)plot(p,'#ffe6a1',1.5);
-  c.save();c.translate(game.sub.x*radarScale,game.sub.z*radarScale);c.rotate(-(game.sub.heading??game.sub.yaw));c.beginPath();c.moveTo(0,-5);c.lineTo(-3,4);c.lineTo(0,2);c.lineTo(3,4);c.closePath();c.fillStyle='#d8f6df';c.fill();c.restore();c.restore();
+  const hx=-game.sub.x,hz=-game.sub.z,hd=Math.hypot(hx,hz),hr=Math.min(72,hd*radarScale);
+  if(hd>5){c.fillStyle='#8cdbfa';c.fillRect(hx/hd*hr-3,hz/hd*hr-3,6,6);}
+  c.save();c.rotate(-(game.sub.heading??game.sub.yaw));c.beginPath();c.moveTo(0,-5);c.lineTo(-3,4);c.lineTo(0,2);c.lineTo(3,4);c.closePath();c.fillStyle='#d8f6df';c.fill();c.restore();c.restore();
 }
 function events(){let coinValue=0;for(const event of game.events){if(event.type==='feed')tone(170,.09);if(event.type==='eat')tone(390,.08);if(event.type==='coin')coinValue+=event.value;if(event.type==='win'){showModal('Look what you grew.',`<p>Ten little lives. Five hundred coins. An entire neighborhood, made by you.</p><p>Your reef is thriving. Keep diving, meet more friends, and make this little corner of the ocean yours.</p>`);save();}}
   if(coinValue){tone(760,.16);toast(`+${coinValue} coins · A little thank-you from your fish.`);}game.events.length=0;

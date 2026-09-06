@@ -60,10 +60,10 @@ test('outer city pillars and roof slabs remain solid',()=>{
   assert.ok(r.y<=roof.base-.65+1e-8||r.y>=roof.base+roof.height+.65-1e-8);
 });
 test('exploration positions, fish targets and food survive a save roundtrip',()=>{
-  const g=createGame();Object.assign(g.sub,{x:BOUNDS.x,y:4,z:-BOUNDS.z});
+  const g=createGame();Object.assign(g.sub,{x:480,y:4,z:-460});
   for(let i=0;i<120;i++)tick(g,{feed:true});feed(g);
   const loaded=restore(serialize(g));assert.ok(loaded);assert.deepEqual(loaded.sub,g.sub);assert.deepEqual(loaded.food,g.food);assert.deepEqual(loaded.fish,g.fish);
-  const corrupt=JSON.parse(serialize(g));corrupt.sub.x=999;assert.equal(restore(JSON.stringify(corrupt)),null);
+  const corrupt=JSON.parse(serialize(g));corrupt.sub.x=1e20;assert.equal(restore(JSON.stringify(corrupt)),null);
 });
 test('chase and observation cameras can follow the submarine beyond the old glass',()=>{
   for(const z of [-40,40]){const p={x:38,y:6,z};assert.deepEqual(clampCameraPosition({...p}),p);}

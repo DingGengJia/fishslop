@@ -169,3 +169,40 @@ Also:
 - 第二版资源包括三种鱼、细化潜艇、鳞片纹理、独立鱼鳍动画，以及更丰富的海底植被和动态焦散；详情见 [README 的视觉更新说明](../README.md#visual-revision-2)。
 
 后续复用此 prompt 时，应先将原型目录替换为实际可用的路径；若没有原型，应明确说明从需求描述开始构建。
+
+## Endless ocean (2026-09-06)
+
+User request (original): “能够做成一个无限空间的海洋”
+
+Implementation scope: retain Atlantis as a home landmark and expand horizontally
+with deterministic 48 m ocean chunks. Reuse a fixed 25-chunk pool; stream coral,
+kelp, grass and rocks with shared instanced geometry. Remove lateral clamps from
+pilot, camera and residents, support remote save positions, shift rendering to a
+nearby origin and keep the shoal travelling with the player. Provide local radar,
+home direction/distance and a return-home action without resetting progress.
+Retain the existing shallow-water depth, feeding loop, daylight and night mode.
+Validate old city collision, remote travel/restoration, layout regeneration,
+bounded allocation, day/night rendering and returning from distant coordinates.
+
+
+## Seabed relief (2026-09-06)
+
+User request (original): “海底应该也不是固定的平面”
+
+Replace the moving flat floor with reusable terrain grids. Preserve Atlantis on
+a level shelf and gradually introduce dunes, slopes and deeper meandering
+channels. Use shared deterministic heights and matching triangle interpolation
+for meshes, submarine/camera collision, rock/vegetation placement, fish targets,
+food and coins. Support deeper travel and negative-height saves, show clearance
+above ground, and verify chunk edges, depth recovery and bounded GPU allocation.
+This supersedes the previous iteration's fixed shallow-water floor.
+
+
+## Oversized shadow correction (2026-09-06)
+
+User request (original): “为什么潜水艇下方有一大片阴影”
+
+A same-view toggle confirmed the transparent water plane inherited shadow casting
+from the ordinary mesh helper and acted as a solid roof in the depth pass.
+Disable water casting/receiving shadows, retain solid-object shadows, and reduce
+the heavy bottom vignette so it does not resemble a large shadow under the pilot.

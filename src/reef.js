@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {createOcean} from './ocean.js';
 import { REEFS } from './simulation.js';
 import { applyCurrent } from './current.js';
 import { createAtlantis } from './atlantis.js';
@@ -22,7 +23,8 @@ export function batchMeshes(root,excluded=[],includeTransparent=false){
   }
 }
 
-export function createReef(scene){
+export function createReef(parent){
+  const scene=new THREE.Group();parent.add(scene);
   let seed=415;const rand=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
   const clock={value:0},night={value:0},plants=[],materials=new Map();
   const causticGLSL=`
@@ -41,9 +43,9 @@ export function createReef(scene){
   `;
   function caustics(material,strength=.18){material.onBeforeCompile=shader=>{
     shader.uniforms.reefTime=clock;shader.uniforms.reefNight=night;shader.vertexShader='varying vec3 reefWorld; varying vec3 reefNormal;\n'+shader.vertexShader;
-    shader.vertexShader=shader.vertexShader.replace('#include <worldpos_vertex>','#include <worldpos_vertex>\nreefWorld=(modelMatrix*vec4(transformed,1.0)).xyz; reefNormal=normalize(mat3(modelMatrix)*objectNormal);');
+    shader.vertexShader=shader.vertexShader.replace('#include <worldpos_vertex>','#include <worldpos_vertex>\nvec4 reefPosition=vec4(transformed,1.0); vec3 reefObjectNormal=objectNormal;\n#ifdef USE_INSTANCING\nreefPosition=instanceMatrix*reefPosition; reefObjectNormal=mat3(instanceMatrix)*reefObjectNormal;\n#endif\nreefWorld=(modelMatrix*reefPosition).xyz; reefNormal=normalize(mat3(modelMatrix)*reefObjectNormal);');
     shader.fragmentShader=causticGLSL+shader.fragmentShader;
-    shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>\nvec2 surfacePoint=reefWorld.xz+vec2(-.346,.346)*(21.0-reefWorld.y);\nvec2 refracted=surfacePoint*.72+vec2(sin(reefTime*.12)*.4,reefTime*.025);\nfloat lightNet=reefCaustic(refracted)+.4*reefCaustic(refracted*1.27+vec2(5.3,-reefTime*.06));\nfloat facing=.16+.84*max(0.0,dot(normalize(reefNormal),normalize(vec3(-.346,1.0,.346))));\nfloat depthFade=mix(.65,1.0,clamp(reefWorld.y/21.0,0.0,1.0));\nfloat sunlight=lightNet*facing*depthFade*${strength.toFixed(2)}*mix(3.8,.16,reefNight);\ndiffuseColor.rgb*=vec3(1.0)+sunlight*vec3(1.0,.98,.78);`);
+    shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>\nvec2 surfacePoint=reefWorld.xz+vec2(-.346,.346)*(21.0-reefWorld.y);\nvec2 refracted=surfacePoint*.72+vec2(sin(reefTime*.12)*.4,reefTime*.025);\nfloat lightNet=reefCaustic(refracted)+.4*reefCaustic(refracted*1.27+vec2(5.3,-reefTime*.06));\nfloat facing=.16+.84*max(0.0,dot(normalize(reefNormal),normalize(vec3(-.346,1.0,.346))));\nfloat depthFade=mix(.65,1.0,clamp(reefWorld.y/21.0,0.0,1.0))*exp(min(reefWorld.y,0.0)*.028);\nfloat sunlight=lightNet*facing*depthFade*${strength.toFixed(2)}*mix(3.8,.16,reefNight);\ndiffuseColor.rgb*=vec3(1.0)+sunlight*vec3(1.0,.98,.78);`);
   };material.customProgramCacheKey=()=>`reef-caustic-refraction-v2-${strength}`;return material;}
   const mat=color=>{if(!materials.has(color))materials.set(color,caustics(new THREE.MeshStandardMaterial({color,roughness:.72}),.12));return materials.get(color);};
   function mesh(geo,material,pos=[0,0,0],scale=[1,1,1],parent=scene){const o=new THREE.Mesh(geo,material);o.position.set(...pos);o.scale.set(...scale);o.castShadow=o.receiveShadow=true;parent.add(o);return o;}
@@ -52,15 +54,15 @@ export function createReef(scene){
   // Warm sand, fine granular bump, and a live projected caustic network.
   const canvas=document.createElement('canvas');canvas.width=canvas.height=1024;const ctx=canvas.getContext('2d');ctx.fillStyle='#b9aa7d';ctx.fillRect(0,0,1024,1024);
   for(let i=0;i<115000;i++){const n=rand();ctx.fillStyle=n>.5?'rgba(249,237,185,.2)':'rgba(83,91,69,.16)';const r=.4+rand()*1.3;ctx.fillRect(rand()*1024,rand()*1024,r,r);}
-  const texture=new THREE.CanvasTexture(canvas);texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(18,17);texture.colorSpace=THREE.SRGBColorSpace;
-  const floorGeo=new THREE.PlaneGeometry(140,130,140,110),p=floorGeo.attributes.position;
-  for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i);p.setZ(i,.08*Math.sin(x*.6)*Math.cos(y*.45)+.028*Math.sin(x*3+y*.6));}floorGeo.computeVertexNormals();
-  const floorMat=caustics(new THREE.MeshStandardMaterial({map:texture,bumpMap:texture,bumpScale:.06,roughness:.92}),.25);
-  const floor=mesh(floorGeo,floorMat);floor.rotation.x=-Math.PI/2;floor.castShadow=false;
+  const texture=new THREE.CanvasTexture(canvas);texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(1,1);texture.colorSpace=THREE.SRGBColorSpace;
+  const floorMat=caustics(new THREE.MeshStandardMaterial({map:texture,bumpMap:texture,bumpScale:.06,roughness:.92,vertexColors:true}),.25);
   const water=new THREE.ShaderMaterial({uniforms:{time:clock,night},side:THREE.DoubleSide,transparent:true,depthWrite:false,
-    vertexShader:'varying vec2 waterUV;void main(){waterUV=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
-    fragmentShader:`uniform float time;uniform float night;varying vec2 waterUV;void main(){vec2 p=waterUV*vec2(38.,29.);float w=sin(p.x*1.2+sin(p.y+time*.3))*sin(p.y*.7+cos(p.x+time*.2));float glint=pow(max(0.,w),12.);vec3 col=mix(vec3(.15,.48,.47),vec3(.77,.89,.70),glint*.65);col=mix(col,mix(vec3(.009,.025,.085),vec3(.12,.23,.40),glint*.65),night);gl_FragColor=vec4(col,.73);}`});
-  mesh(new THREE.PlaneGeometry(140,130),water,[0,21,0]).rotation.x=Math.PI/2;
+    vertexShader:'varying vec2 waterUV;varying float waterDistance;void main(){waterUV=uv;vec4 world=modelMatrix*vec4(position,1.);waterDistance=length(cameraPosition-world.xyz);gl_Position=projectionMatrix*viewMatrix*world;}',
+    fragmentShader:`uniform float time;uniform float night;varying vec2 waterUV;varying float waterDistance;void main(){vec2 p=waterUV*vec2(38.,29.);float w=sin(p.x*1.2+sin(p.y+time*.3))*sin(p.y*.7+cos(p.x+time*.2));float glint=pow(max(0.,w),12.);vec3 col=mix(vec3(.15,.48,.47),vec3(.77,.89,.70),glint*.65);col=mix(col,mix(vec3(.009,.025,.085),vec3(.12,.23,.40),glint*.65),night);gl_FragColor=vec4(col,.73*(1.0-smoothstep(30.0,105.0,waterDistance)));}`});
+  const surface=mesh(new THREE.PlaneGeometry(320,320),water,[0,21,0]);surface.rotation.x=Math.PI/2;
+  // The transparent water shader has no opaque depth silhouette. Let sunlight
+  // reach the seabed instead of treating the whole surface as a solid roof.
+  surface.castShadow=surface.receiveShadow=false;
   // Soft refracted shafts, merged into one draw. A pair of crossed ribbons
   // keeps each shaft visible while steering, with no per-beam shadow lights.
   const rayMat=new THREE.ShaderMaterial({uniforms:{time:clock,night},transparent:true,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,
@@ -200,11 +202,19 @@ export function createReef(scene){
   const atlantis=createAtlantis(scene,caustics);
   // Tall kelp grows among the outer colonnades.
   kelp(-5,-15.6,8.2);kelp(18,-14.6,7.5);kelp(-18,1,8.8);
-  batchMeshes(scene,[...plants.map(p=>p.object),...atlantis.animatedObjects]);
+  batchMeshes(scene,[surface,sunrays,...plants.map(p=>p.object),...atlantis.animatedObjects]);
   for(const object of atlantis.animatedObjects)batchMeshes(object,object.children.filter(o=>o.geometry?.type==='OctahedronGeometry'));
   for(const plant of plants){batchMeshes(plant.object);applyCurrent(plant.object,clock,plant);}
   const dustPositions=new Float32Array(650*3);for(let i=0;i<650;i++){dustPositions[i*3]=(rand()-.5)*48;dustPositions[i*3+1]=rand()*21;dustPositions[i*3+2]=(rand()-.5)*36;}
   const dustGeo=new THREE.BufferGeometry();dustGeo.setAttribute('position',new THREE.BufferAttribute(dustPositions,3));
   const dust=new THREE.Points(dustGeo,new THREE.PointsMaterial({color:'#e2edbc',size:.035,transparent:true,opacity:.45,depthWrite:false}));scene.add(dust);
-  return {applyCaustics:caustics,setNight(value){night.value=value;atlantis.setNight(value);dust.material.color.set(value>.5?'#70dcff':'#e2edbc');dust.material.opacity=.45+value*.3;dust.material.size=.035+value*.025;},update(t){clock.value=t;atlantis.update(t);dust.rotation.y=Math.sin(t*.025)*.035;}};
+  const ocean=createOcean(parent,caustics,clock,floorMat);
+  return {ocean,applyCaustics:caustics,setNight(value){night.value=value;atlantis.setNight(value);dust.material.color.set(value>.5?'#70dcff':'#e2edbc');dust.material.opacity=.45+value*.3;dust.material.size=.035+value*.025;},update(t,p={x:0,z:0},origin={x:0,z:0},immediate=false){
+    clock.value=t;scene.position.set(-origin.x,0,-origin.z);atlantis.update(t);
+    // Move only continuous backgrounds. Their repeat period is eight meters.
+    const x=Math.floor(p.x/8)*8,z=Math.floor(p.z/8)*8;
+    surface.position.set(x,21,z);sunrays.position.set(x,0,z);
+    dust.position.set(p.x,Math.min(0,(p.y??7)-7),p.z);dust.rotation.y=Math.sin(t*.025)*.035;
+    ocean.update(p,origin,immediate);
+  }};
 }
