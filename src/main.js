@@ -1,5 +1,5 @@
 import './style.css';
-import {createGame,ensureDiversity,tick,STEP,buy,canAddSpecies,feed,price,serialize,restore,clamp} from './simulation.js';
+import {createGame,ensureDiversity,tick,STEP,buy,canAddSpecies,feed,price,serialize,restore,clamp,BOUNDS} from './simulation.js';
 import {createWorld} from './scene.js';
 import {SPECIES,MAX_RESIDENTS,speciesOf,sizeLabel} from './species.js';
 const $=id=>document.getElementById(id);
@@ -27,7 +27,7 @@ function initAudio(){if(audioContext)return;try{audioContext=new AudioContext();
 function tone(freq,duration=.15){if(muted||!audioContext)return;const o=audioContext.createOscillator(),gain=audioContext.createGain();o.type='sine';o.frequency.setValueAtTime(freq,audioContext.currentTime);o.frequency.exponentialRampToValueAtTime(freq*1.35,audioContext.currentTime+duration);gain.gain.setValueAtTime(.055,audioContext.currentTime);gain.gain.exponentialRampToValueAtTime(.001,audioContext.currentTime+duration);o.connect(gain).connect(audioContext.destination);o.start();o.stop(audioContext.currentTime+duration);o.onended=()=>{o.disconnect();gain.disconnect();};}
 function audioState(){if(ambient)ambient.gain.setTargetAtTime(!muted&&playing&&!paused?.018:0,audioContext.currentTime,.15);}
 $('sound').onclick=async()=>{initAudio();if(!audioContext)return;await audioContext.resume();muted=!muted;$('sound').textContent=muted?'♪':'♫';$('sound').setAttribute('aria-label',muted?'Enable sound':'Mute sound');$('sound').setAttribute('aria-pressed',String(!muted));audioState();if(!muted)tone(320);};
-function setPaused(value){paused=value;keys.clear();drag=null;$('pause').textContent=paused?'▷':'Ⅱ';$('pause').setAttribute('aria-label',paused?'Resume game':'Pause game');$('scene-state').textContent=paused?'TAKING A BREATHER':'AQUARIUM LIVE';audioState();}
+function setPaused(value){paused=value;keys.clear();drag=null;$('pause').textContent=paused?'▷':'Ⅱ';$('pause').setAttribute('aria-label',paused?'Resume game':'Pause game');$('scene-state').textContent=paused?'TAKING A BREATHER':'ATLANTIS LIVE';audioState();}
 function showModal(title,content){setPaused(true);$('modal-title').textContent=title;$('modal-content').innerHTML=content;if(!$('modal').open)$('modal').showModal();}
 function closeModal(){$('modal').close();setPaused(false);document.activeElement?.blur();}
 $('close-modal').onclick=closeModal;$('resume').onclick=closeModal;
@@ -83,14 +83,15 @@ function updateHUD(){
 
 }
 const radar=$('radar').getContext('2d');
+const radarScale=75/Math.hypot(BOUNDS.x,BOUNDS.z);
 function drawRadar(){const c=radar;c.clearRect(0,0,180,180);c.save();c.translate(90,90);
   for(const r of [27,54,80]){c.beginPath();c.arc(0,0,r,0,Math.PI*2);c.strokeStyle='#a2dcca26';c.lineWidth=.7;c.stroke();}
   c.strokeStyle='#a2dcca19';c.beginPath();c.moveTo(-80,0);c.lineTo(80,0);c.moveTo(0,-80);c.lineTo(0,80);c.stroke();
   c.fillStyle='#94d6c30c';c.beginPath();c.moveTo(0,0);c.arc(0,0,80,game.time*.4,game.time*.4+.5);c.closePath();c.fill();
-  const plot=(p,color,r)=>{c.beginPath();c.arc(p.x*3.2,p.z*3.2,r,0,Math.PI*2);c.fillStyle=color;c.fill();};
+  const plot=(p,color,r)=>{c.beginPath();c.arc(p.x*radarScale,p.z*radarScale,r,0,Math.PI*2);c.fillStyle=color;c.fill();};
   for(const f of game.fish)plot(f,f.hunger>.7?'#e7826e':'#dfb892',2);
   for(const p of game.drops)plot(p,'#ffe6a1',1.5);
-  c.save();c.translate(game.sub.x*3.2,game.sub.z*3.2);c.rotate(-(game.sub.heading??game.sub.yaw));c.beginPath();c.moveTo(0,-5);c.lineTo(-3,4);c.lineTo(0,2);c.lineTo(3,4);c.closePath();c.fillStyle='#d8f6df';c.fill();c.restore();c.restore();
+  c.save();c.translate(game.sub.x*radarScale,game.sub.z*radarScale);c.rotate(-(game.sub.heading??game.sub.yaw));c.beginPath();c.moveTo(0,-5);c.lineTo(-3,4);c.lineTo(0,2);c.lineTo(3,4);c.closePath();c.fillStyle='#d8f6df';c.fill();c.restore();c.restore();
 }
 function events(){let coinValue=0;for(const event of game.events){if(event.type==='feed')tone(170,.09);if(event.type==='eat')tone(390,.08);if(event.type==='coin')coinValue+=event.value;if(event.type==='win'){showModal('Look what you grew.',`<p>Ten little lives. Five hundred coins. An entire neighborhood, made by you.</p><p>Your reef is thriving. Keep diving, meet more friends, and make this little corner of the ocean yours.</p>`);save();}}
   if(coinValue){tone(760,.16);toast(`+${coinValue} coins · A little thank-you from your fish.`);}game.events.length=0;

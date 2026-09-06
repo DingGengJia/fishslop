@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { REEFS } from './simulation.js';
 import { applyCurrent } from './current.js';
+import { createAtlantis } from './atlantis.js';
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 
 export function batchMeshes(root,excluded=[],includeTransparent=false){
@@ -49,24 +50,15 @@ export function createReef(scene){
   // Warm sand, fine granular bump, and a live projected caustic network.
   const canvas=document.createElement('canvas');canvas.width=canvas.height=1024;const ctx=canvas.getContext('2d');ctx.fillStyle='#b9aa7d';ctx.fillRect(0,0,1024,1024);
   for(let i=0;i<115000;i++){const n=rand();ctx.fillStyle=n>.5?'rgba(249,237,185,.2)':'rgba(83,91,69,.16)';const r=.4+rand()*1.3;ctx.fillRect(rand()*1024,rand()*1024,r,r);}
-  const texture=new THREE.CanvasTexture(canvas);texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(6,5);texture.colorSpace=THREE.SRGBColorSpace;
-  const floorGeo=new THREE.PlaneGeometry(48,36,140,110),p=floorGeo.attributes.position;
+  const texture=new THREE.CanvasTexture(canvas);texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(18,17);texture.colorSpace=THREE.SRGBColorSpace;
+  const floorGeo=new THREE.PlaneGeometry(140,130,140,110),p=floorGeo.attributes.position;
   for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i);p.setZ(i,.08*Math.sin(x*.6)*Math.cos(y*.45)+.028*Math.sin(x*3+y*.6));}floorGeo.computeVertexNormals();
   const floorMat=caustics(new THREE.MeshStandardMaterial({map:texture,bumpMap:texture,bumpScale:.06,roughness:.92}),.25);
   const floor=mesh(floorGeo,floorMat);floor.rotation.x=-Math.PI/2;floor.castShadow=false;
-  // Aquarium panes and silicone seams, with a clearly visible waterline.
-  const glass=new THREE.MeshPhysicalMaterial({color:'#117f8b',transparent:true,opacity:.13,roughness:.2,metalness:.15,side:THREE.DoubleSide,depthWrite:false});
-  mesh(new THREE.PlaneGeometry(48,21),glass,[0,10.5,-18]);
-  for(const x of [-24,24])mesh(new THREE.PlaneGeometry(36,21),glass,[x,10.5,0]).rotation.y=Math.PI/2;
-  for(const x of [-24,24])for(const z of [-18,18])mesh(new THREE.BoxGeometry(.07,21,.07),mat('#153e48'),[x,10.5,z]);
-  for(const y of [.15,21]){
-    mesh(new THREE.BoxGeometry(48,.10,.10),mat('#629d99'),[0,y,-18]);
-    for(const x of [-24,24])mesh(new THREE.BoxGeometry(.10,.10,36),mat('#629d99'),[x,y,0]);
-  }
   const water=new THREE.ShaderMaterial({uniforms:{time:clock},side:THREE.DoubleSide,transparent:true,depthWrite:false,
     vertexShader:'varying vec2 waterUV;void main(){waterUV=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
     fragmentShader:`uniform float time;varying vec2 waterUV;void main(){vec2 p=waterUV*vec2(38.,29.);float w=sin(p.x*1.2+sin(p.y+time*.3))*sin(p.y*.7+cos(p.x+time*.2));float glint=pow(max(0.,w),12.);vec3 col=mix(vec3(.15,.48,.47),vec3(.77,.89,.70),glint*.65);gl_FragColor=vec4(col,.73);}`});
-  mesh(new THREE.PlaneGeometry(48,36),water,[0,21,0]).rotation.x=Math.PI/2;
+  mesh(new THREE.PlaneGeometry(140,130),water,[0,21,0]).rotation.x=Math.PI/2;
   // A few soft shafts: gradient alpha, no hard solid cones.
   const rayCanvas=document.createElement('canvas');rayCanvas.width=64;rayCanvas.height=128;const rc=rayCanvas.getContext('2d');const grad=rc.createLinearGradient(0,0,64,0);grad.addColorStop(0,'black');grad.addColorStop(.5,'white');grad.addColorStop(1,'black');rc.fillStyle=grad;rc.fillRect(0,0,64,128);
   const rayMat=new THREE.MeshBasicMaterial({color:'#cbf9da',alphaMap:new THREE.CanvasTexture(rayCanvas),transparent:true,opacity:.025,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide});
@@ -185,21 +177,14 @@ export function createReef(scene){
     for(let a=0;a<5;a++){const angle=a*Math.PI*2/5;tube([[0,.04,0],[Math.sin(angle)*.17,.06,Math.cos(angle)*.17],[Math.sin(angle)*.42,.015,Math.cos(angle)*.42]],.055,mat('#dba381'),g);}
     mesh(sphere,mat('#dba381'),[0,.04,0],[.17,.065,.17],g);
   }
-  // Printed sanctuary lettering belongs to the tank wall, not the HUD.
-  const signCanvas=document.createElement('canvas');signCanvas.width=2048;signCanvas.height=640;
-  const sign=signCanvas.getContext('2d');sign.textAlign='center';sign.fillStyle='#b7dfd7';
-  sign.font='italic 700 174px Arial, sans-serif';sign.fillText('SUNLIT SHOALS',1024,246);
-  sign.font='italic 62px monospace';sign.fillText('01  /  AQUATIC SANCTUARY',1024,411);
-  sign.strokeStyle='#95c8bd';sign.lineWidth=3;sign.beginPath();sign.moveTo(120,502);sign.lineTo(1928,502);sign.stroke();
-  const signTexture=new THREE.CanvasTexture(signCanvas);signTexture.colorSpace=THREE.SRGBColorSpace;
-  const signMesh=mesh(new THREE.PlaneGeometry(19,5.94),new THREE.MeshBasicMaterial({map:signTexture,transparent:true,opacity:.74,depthWrite:false,toneMapped:false}),[6,12,-17.86]);signMesh.castShadow=false;signMesh.renderOrder=2;
-  for(const x of [-12,0,12])mesh(new THREE.BoxGeometry(.038,21,.04),mat('#154b51'),[x,10.5,-17.95]);
-  // A few taller stems break up the wall without obscuring the painted title.
+  const atlantis=createAtlantis(scene,caustics);
+  // Tall kelp grows among the outer colonnades.
   kelp(-5,-15.6,8.2);kelp(18,-14.6,7.5);kelp(-18,1,8.8);
-  batchMeshes(scene,plants.map(p=>p.object));
+  batchMeshes(scene,[...plants.map(p=>p.object),...atlantis.animatedObjects]);
+  for(const object of atlantis.animatedObjects)batchMeshes(object,object.children.filter(o=>o.geometry?.type==='OctahedronGeometry'));
   for(const plant of plants){batchMeshes(plant.object);applyCurrent(plant.object,clock,plant);}
   const dustPositions=new Float32Array(650*3);for(let i=0;i<650;i++){dustPositions[i*3]=(rand()-.5)*48;dustPositions[i*3+1]=rand()*21;dustPositions[i*3+2]=(rand()-.5)*36;}
   const dustGeo=new THREE.BufferGeometry();dustGeo.setAttribute('position',new THREE.BufferAttribute(dustPositions,3));
   const dust=new THREE.Points(dustGeo,new THREE.PointsMaterial({color:'#e2edbc',size:.035,transparent:true,opacity:.45,depthWrite:false}));scene.add(dust);
-  return {update(t){clock.value=t;dust.rotation.y=Math.sin(t*.025)*.035;}};
+  return {update(t){clock.value=t;atlantis.update(t);dust.rotation.y=Math.sin(t*.025)*.035;}};
 }

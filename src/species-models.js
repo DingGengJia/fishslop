@@ -150,5 +150,30 @@ export function createSpeciesModels(){
     if(goby){const rear=fin(root,[[-.37,0],[-.20,.11],[.12,.10],[.20,0]],finMat);rear.rotation.y=Math.PI/2;rear.position.set(0,.11,-.35);}
     return root;
   }
-  return [clown(),predator(false),predator(true),jelly(),createWhale(),manta(),turtle(),smallFish(false),smallFish(true)];
+  function reefFish(kind){
+    const root=new THREE.Group(),slender=kind===3,banner=kind===2;
+    const skin=standard(['#efc832','#1760de','#fff4d3','#f79545'][kind]);
+    const finMat=standard(kind===1?'#f3d03a':kind===2?'#eacb48':kind===3?'#df567c':'#f3d747');
+    const depth=slender?.27:.48;
+    const body=hull(root,[[-.72,.025,.06],[-.45,.10,depth*.62],[-.05,.18,depth],[.38,.18,depth*.88],[.65,.10,.19],[.87,.025,.06]],skin,(z,y)=>{
+      if(kind===1){
+        const stripe=(1-THREE.MathUtils.smoothstep(Math.abs(y-(.34+.23*Math.sin((z+.4)*4))),.03,.24))*(1-THREE.MathUtils.smoothstep(z,.40,.66));
+        const back=THREE.MathUtils.smoothstep(y,.58,.86);
+        return blend('#235ad9','#488ce3',(-y-.3)/.7).lerp(new THREE.Color('#122142'),Math.max(stripe,back));
+      }
+      if(banner)return Math.abs(z+y*.17+.28)<.14||Math.abs(z+y*.17-.4)<.12?'#1d2e37':'#fff3d7';
+      return blend(skin.color,slender?'#faca78':'#fff18a',(-y+.2)/1.7);
+    });
+    bodyEyes(root,body,.64,.2,.045);
+    for(const side of [-1,1])seam(root,body,side,.46,.32,.5,-.8,.0028);
+    const tail=group(root,'TailPivot',[0,0,-.7]);
+    mesh(tail,sphere,finMat,[0,0,-.05],[.026,.048,.10]);
+    const tf=fin(tail,slender?[[0,0],[-.5,.36],[-.26,0],[-.5,-.36]]:[[0,0],[-.38,.31],[-.27,0],[-.38,-.31]],finMat);tf.rotation.y=-Math.PI/2;
+    const dorsal=fin(root,banner?[[-.32,0],[-.32,.4],[-.1,.92],[.30,1.05],[.02,.87],[-.16,.37],[-.12,0]]:[[-.56,0],[-.38,.20],[.05,slender?.18:.3],[.5,.04]],banner?white:kind===1?skin:finMat);
+    dorsal.rotation.y=Math.PI/2;dorsal.position.y=depth*.7;
+    const anal=fin(root,[[-.48,0],[-.25,-.20],[.12,-.19],[.4,0]],finMat);anal.rotation.y=Math.PI/2;anal.position.y=-depth*.68;
+    for(const side of [-1,1]){const pivot=group(root,'PectoralPivot'+side,[side*.17,-.1,.25]);const f=fin(pivot,[[0,0],[side*.24,-.12],[side*.15,-.27],[0,-.08]],finMat);f.rotation.x=.5;}
+    return root;
+  }
+  return [clown(),predator(false),predator(true),jelly(),createWhale(),manta(),turtle(),smallFish(false),smallFish(true),reefFish(0),reefFish(1),reefFish(2),reefFish(3)];
 }

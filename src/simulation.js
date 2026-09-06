@@ -1,7 +1,9 @@
+import { WORLD_BOUNDS } from './world-bounds.js';
+import { collideAtlantis } from './atlantis-layout.js';
 import { updateAttitude } from './pilot.js';
 import { SPECIES, MAX_RESIDENTS, speciesOf, validSpecies } from './species.js';
-// Rendering-independent fixed-step simulation. All coordinates are in tank meters.
-export const BOUNDS = { x: 21, z: 16, minY: 1.3, maxY: 19 };
+// Rendering-independent fixed-step simulation. All coordinates are in sanctuary meters.
+export const BOUNDS = WORLD_BOUNDS;
 export const STEP = 1 / 60;
 export const REEFS=[[-12,-5,3.2],[11,-8,3.8],[-15,9,3.2],[14,8,3.6],[-6,-13,2.1],[20,-1,2.6],[-21,-8,2.5],[-7,5,2.4],[8,4,2.7]];
 // Smooth ellipsoid colliders approximate the reef rocks; plants remain non-solid.
@@ -31,7 +33,7 @@ function target(g,type=0) {
   const sp=speciesOf(type),radius=sp.length>1?6:2.5;
   if(sp.kind==='whale')return {x:(random(g)-.5)*22,y:10+random(g)*4,z:(random(g)-.5)*14};
   if(sp.kind==='ray')return {x:(random(g)-.5)*26,y:7+random(g)*7,z:(random(g)-.5)*20};
-  return {x:clamp(g.sub.x+(random(g)-.5)*radius*2,-18,18),y:clamp(g.sub.y+(random(g)-.5)*(sp.kind==='jelly'?2:3),2,17),z:clamp(g.sub.z-2.5+(random(g)-.5)*radius*1.5,-14,14)};
+  return {x:clamp(g.sub.x+(random(g)-.5)*radius*2,-BOUNDS.x+3,BOUNDS.x-3),y:clamp(g.sub.y+(random(g)-.5)*(sp.kind==='jelly'?2:3),2,17),z:clamp(g.sub.z-2.5+(random(g)-.5)*radius*1.5,-BOUNDS.z+3,BOUNDS.z-3)};
 }
 export function canAddSpecies(g,type){return validSpecies(type)&&g.fish.length<MAX_RESIDENTS&&g.fish.filter(f=>f.type===type).length<(speciesOf(type).limit||MAX_RESIDENTS);}
 export function addFish(g,type=g.fish.length%SPECIES.length) {
@@ -41,15 +43,17 @@ export function addFish(g,type=g.fish.length%SPECIES.length) {
 }
 // One-time complimentary arrivals, including existing saves. Never remove residents.
 export function ensureDiversity(g) {
-  if(g.rosterVersion===2)return false;
-  if(g.rosterVersion!==1)for(const type of [4,5,3,6,3,3,6,0,1,2,3,6])addFish(g,type);
-  for(const type of [7,8,9,10,11,10,10,10,10,11,11,11])addFish(g,type);
-  g.rosterVersion=2;return true;
+  if(g.rosterVersion===3)return false;
+  if(g.rosterVersion!==1&&g.rosterVersion!==2){for(const type of [4,5,3,6,3,3,6,0,1,2,3,6])addFish(g,type);}
+  if(g.rosterVersion!==2)for(const type of [7,8,9,10,11,10,10,10,10,11,11,11])addFish(g,type);
+  // Interleave arrivals so nearly full saves still receive a mix of new species.
+  for(let i=0;i<15;i++)for(const [type,count]of [[12,10],[13,8],[14,10],[15,15]])if(i<count)addFish(g,type);
+  g.rosterVersion=3;return true;
 }
 function purchaseType(item){if(item==='fish')return -1;const match=/^fish:(0|[1-9][0-9]*)$/.exec(item);return match&&validSpecies(Number(match[1]))?Number(match[1]):null;}
 export function price(g,item){
   const type=purchaseType(item);
-  if(type!==null)return (type<0?50:speciesOf(type).cost)+Math.max(0,g.fish.length-(g.rosterVersion===2?29:g.rosterVersion===1?17:5))*20;
+  if(type!==null)return (type<0?50:speciesOf(type).cost)+Math.max(0,g.fish.length-(g.rosterVersion===3?72:g.rosterVersion===2?29:g.rosterVersion===1?17:5))*20;
   return ({food:90,speed:100,magnet:120}[item]??Infinity)*(1+(g.upgrades[item]||0));
 }
 export function buy(g,item) {
@@ -84,7 +88,7 @@ export function tick(g,input={},dt=STEP) {
   const ty=(Math.sin(s.pitch)*forward+vertical)*speed;
   const smooth=1-Math.exp(-dt*4);
   s.vx+=(tx-s.vx)*smooth;s.vy+=(ty-s.vy)*smooth;s.vz+=(tz-s.vz)*smooth;
-  s.x+=s.vx*dt;s.y+=s.vy*dt;s.z+=s.vz*dt;collideReef(s);bounded(s);
+  s.x+=s.vx*dt;s.y+=s.vy*dt;s.z+=s.vz*dt;collideReef(s);collideAtlantis(s);bounded(s);
   updateAttitude(s,dt);
   if(input.feed)feed(g);
   for(const p of g.food){p.age+=dt;p.y=Math.max(.65,p.y-dt*.65);}
@@ -96,7 +100,12 @@ export function tick(g,input={},dt=STEP) {
     if(f.hunger>.13)for(const p of g.food){const d=distance(f,p);if(d<best&&(!openWater||p.y>7)){best=d;meal=p;}}
     // Curious residents stay in a loose shoal around their caretaker.
     if(!meal&&!openWater&&distance(f,g.sub)>(sp.length>1?10:5))f.target=target(g,f.type);
-    if(!meal&&sp.kind==='school')f.target={x:clamp(g.sub.x-2+Math.cos(g.time*.18)*1.6+(f.id%4)*.22,-18,18),y:clamp(g.sub.y-.6+(f.id%3)*.16,2,17),z:clamp(g.sub.z-3+Math.sin(g.time*.18)*1.6+Math.floor(f.id%8/4)*.22,-14,14)};
+    if(!meal&&sp.kind==='school'){
+      // Several loose schools circle different sides of the caretaker instead
+      // of piling every species onto the same target and clipping together.
+      const band=f.type===10?0:f.type-11,phase=g.time*.18+band*1.45,slot=f.id%12;
+      f.target={x:clamp(g.sub.x+Math.cos(phase)*3.6+((slot%4)-1.5)*.48,-BOUNDS.x+3,BOUNDS.x-3),y:clamp(g.sub.y-.8+(band%3)*.7+Math.floor(slot/4)*.28,2,17),z:clamp(g.sub.z-2+Math.sin(phase)*3.6+((slot*7%5)-2)*.38,-BOUNDS.z+3,BOUNDS.z-3)};
+    }
     const goal=meal||f.target;
     const d=distance(f,goal);
     const speed=sp.kind==='jelly'?sp.speed*(.7+.5*Math.sin(g.time*2+f.id)**2):meal?Math.max(1.1,sp.speed*1.8):sp.speed;
@@ -131,7 +140,7 @@ export function restore(raw) {
     const g=JSON.parse(raw);
     if(g.version!==1||!Array.isArray(g.fish)||g.fish.length<1||g.fish.length>MAX_RESIDENTS)return null;
     const finite=(v,lo,hi)=>typeof v==='number'&&Number.isFinite(v)&&v>=lo&&v<=hi;
-    const position=p=>p&&finite(p.x,-30,30)&&finite(p.y,0,25)&&finite(p.z,-25,25);
+    const position=p=>p&&finite(p.x,-BOUNDS.x-8,BOUNDS.x+8)&&finite(p.y,0,25)&&finite(p.z,-BOUNDS.z-8,BOUNDS.z+8);
     if(!position(g.sub)||!['yaw','pitch','vx','vy','vz'].every(k=>finite(g.sub[k],-1e9,1e9)))return null;
     if(!['coins','earned','meals','time','nextId','seed','cooldown'].every(k=>finite(g[k],0,1e12)))return null;
     if(!g.upgrades||!['food','speed','magnet'].every(k=>Number.isInteger(g.upgrades[k])&&finite(g.upgrades[k],0,3)))return null;

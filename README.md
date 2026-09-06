@@ -1,6 +1,40 @@
 # Fishslop
 
-A playable, cozy 3D aquarium game. Pilot a small submarine from a third-person chase camera, feed a neighborhood of fish, collect their coins, and grow your reef.
+A playable, cozy 3D underwater game set among the ruins of Atlantis. Pilot a small submarine from a third-person chase camera, feed a neighborhood of fish, collect their coins, and grow your reef.
+
+## Denser living schools
+
+There are now 16 species, 72 initial residents and space for 96. Yellow tangs,
+palette surgeonfish, longfin bannerfish and lyretail anthias join in distinct
+schools. Existing saves receive 43 complimentary arrivals once, with no removal
+of existing fish. Small species use instanced animated parts to keep draw calls
+from growing per fish. See [model references and validation](docs/shoals.md).
+
+## Atlantis — visual revision 10
+
+The sanctuary now features a sunken temple with a traversable stone arch, fluted
+columns, broken masonry, a bronze compass mosaic, an illuminated armillary, and
+a distant city fading into the water. Fish, submarine controls, reef currents,
+feeding, upgrades, and existing local saves are retained.
+
+`src/atlantis-layout.js` shares the main structure dimensions between rendering
+and simplified submarine collision. The playable bounds are 96 × 92 meters. All 26 outer-city pavilions have
+open entrances and interiors, with colliders generated from their actual piers
+and floor/roof slabs. Camera bounds, radar scaling, fish following targets and
+save validation use the enlarged area. Loose small rubble and bronze ornaments are decorative.
+Static ruins share materials and join the reef batches; the armillary and crystal
+are the only independently animated architectural objects. No new shadow lights
+or external art assets are required.
+
+Validation: 39 Node regression tests (including arch passage, boosted column
+collision, step landings, legacy saves inside new structures, all 26 outer passages, and saves in the expanded area); production
+build with the GitHub Pages base path; browser scene and console checks. An initial-scene local
+29-resident mixed-species benchmark at 1422 × 800, pixel ratio 1.25 measured
+8.3 ms median / 9.4 ms p95 frame time, 337 draw calls, and 606,243 triangles before
+the outer-city expansion. This historical sample is not a benchmark of the
+expanded city or a device-wide FPS guarantee. Browser verification of the fix
+confirmed entry into an outer dome at z=34.28 with the chase camera at z=39.08
+and no console errors. The existing bundle-size warning remains.
 
 ## Repository and live game
 

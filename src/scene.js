@@ -1,21 +1,23 @@
 import * as THREE from 'three';
+import { clampCameraPosition } from './world-bounds.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createReef, batchMeshes } from './reef.js';
 import { createSpeciesModels } from './species-models.js';
 import { prepareSpeciesModel } from './model-preparation.js';
-import { speciesOf, adultScale } from './species.js';
+import {createFishInstances} from './fish-instances.js';
+import { speciesOf, adultScale, MAX_RESIDENTS } from './species.js';
 
 export async function createWorld(canvas){
   const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
   renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.setSize(innerWidth,innerHeight);
   renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
   renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-  const scene=new THREE.Scene();scene.background=new THREE.Color('#076a77');scene.fog=new THREE.FogExp2('#087986',.009);
+  const scene=new THREE.Scene();scene.background=new THREE.Color('#073f53');scene.fog=new THREE.FogExp2('#075164',.033);
   const pmrem=new THREE.PMREMGenerator(renderer),room=new RoomEnvironment();const environment=pmrem.fromScene(room,.04);scene.environment=environment.texture;scene.environmentIntensity=.36;room.dispose();pmrem.dispose();
   const camera=new THREE.PerspectiveCamera(57,innerWidth/innerHeight,.1,130);
-  scene.add(new THREE.HemisphereLight('#e0f4ed','#687b69',1.35));
-  const sun=new THREE.DirectionalLight('#fff3d7',2.3);sun.position.set(-9,26,9);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);
+  scene.add(new THREE.HemisphereLight('#bfe9ee','#365957',1.25));
+  const sun=new THREE.DirectionalLight('#fff0cf',2.6);sun.position.set(-9,26,9);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);
   Object.assign(sun.shadow.camera,{left:-27,right:27,top:27,bottom:-27,near:1,far:70});sun.shadow.bias=-.0003;sun.shadow.normalBias=.045;scene.add(sun);
   const fill=new THREE.DirectionalLight('#8dd6e5',.70);fill.position.set(15,10,-16);scene.add(fill);
   const reef=createReef(scene);
@@ -36,11 +38,14 @@ export async function createWorld(canvas){
   const templates=[...fishAssets.map(a=>a.scene),...createSpeciesModels()].map((body,type)=>{
     return prepareSpeciesModel(body,type,renderer.capabilities.getMaxAnisotropy());
   });
+  const instancePools=new Map();
   function fishModel(f){
     const group=new THREE.Group(),template=templates[f.type],body=template.body.clone(true);body.rotation.y=Math.PI;group.add(body);
     const fins=[];body.traverse(o=>{if(!o.isMesh&&/^PectoralPivot/.test(o.name))fins.push(o);});
-    group.rotation.order='YXZ';group.rotation.y=f.yaw;scene.add(group);
-    return {group,body,tail:body.getObjectByName('TailPivot'),bell:body.getObjectByName('BellPivot'),arms:body.getObjectByName('ArmsPivot'),fins,length:template.length,swimPhase:f.id*1.7,swimSpeed:0,previous:new THREE.Vector3(f.x,f.y,f.z)};
+    group.rotation.order='YXZ';group.rotation.y=f.yaw;
+    const instanced=f.type>=10,parts=[];
+    if(instanced){if(!instancePools.has(f.type))instancePools.set(f.type,createFishInstances(scene,template.body,MAX_RESIDENTS));body.traverse(o=>{if(o.isMesh)parts.push(o);});}else scene.add(group);
+    return {group,body,instanced,parts,tail:body.getObjectByName('TailPivot'),bell:body.getObjectByName('BellPivot'),arms:body.getObjectByName('ArmsPivot'),fins,length:template.length,swimPhase:f.id*1.7,swimSpeed:0,previous:new THREE.Vector3(f.x,f.y,f.z)};
   }
   function sync(map,data,make,update){
     const ids=new Set(data.map(d=>d.id));for(const[id,obj]of map)if(!ids.has(id)){scene.remove(obj.group||obj);map.delete(id);}
@@ -77,13 +82,16 @@ export async function createWorld(canvas){
     sync(coinModels,g.drops,()=>{const group=new THREE.Group();group.add(new THREE.Mesh(coinGeo,coinMat));for(const z of [-.04,.04]){const rim=new THREE.Mesh(ringGeo,ringMat);rim.position.z=z;group.add(rim);const numeral=new THREE.Mesh(numberGeo,ringMat);numeral.position.z=z;group.add(numeral);}scene.add(group);return group;},(m,c)=>{m.position.set(c.x,c.y+Math.sin(t*2+c.id)*.08,c.z);m.rotation.y=t*1.4+c.id;});
     const back=playing?4.8:6.2,up=playing?1.5:2.1;
     cameraGoal.set(s.x+Math.sin(s.yaw)*back,s.y+up-Math.sin(s.pitch)*3,s.z+Math.cos(s.yaw)*back);
-    cameraGoal.x=THREE.MathUtils.clamp(cameraGoal.x,-23,23);cameraGoal.y=THREE.MathUtils.clamp(cameraGoal.y,2,20.4);cameraGoal.z=THREE.MathUtils.clamp(cameraGoal.z,-17,23.5);
+    clampCameraPosition(cameraGoal);
     lookGoal.set(s.x-Math.sin(s.yaw)*3,s.y+.35+Math.sin(s.pitch)*3,s.z-Math.cos(s.yaw)*3);
     const observed=focusType===null?null:g.fish.find(f=>f.type===focusType);
     sub.visible=!observed;
     for(const f of g.fish)fishModels.get(f.id).group.visible=!observed||f.type===observed.type;
     for(const coin of coinModels.values())coin.visible=!observed;
-    if(observed){const distance=Math.max(.30,speciesOf(observed.type).length*(speciesOf(observed.type).length>=6?.95:1.8));cameraGoal.set(observed.x+distance*.85,observed.y+distance*.28,observed.z+distance*.8);lookGoal.set(observed.x,observed.y,observed.z);cameraGoal.x=THREE.MathUtils.clamp(cameraGoal.x,-22.8,22.8);cameraGoal.y=THREE.MathUtils.clamp(cameraGoal.y,1,20.3);cameraGoal.z=THREE.MathUtils.clamp(cameraGoal.z,-16.8,16.8);}
+    for(const pool of instancePools.values())pool.reset();
+    for(const f of g.fish){const m=fishModels.get(f.id);if(m.instanced&&m.group.visible)instancePools.get(f.type).add(m.group,m.parts);}
+    for(const pool of instancePools.values())pool.flush();
+    if(observed){const distance=Math.max(.30,speciesOf(observed.type).length*(speciesOf(observed.type).length>=6?.95:1.8));cameraGoal.set(observed.x+distance*.85,observed.y+distance*.28,observed.z+distance*.8);lookGoal.set(observed.x,observed.y,observed.z);clampCameraPosition(cameraGoal);}
     if(!initialized){camera.position.copy(cameraGoal);lookAt.copy(lookGoal);initialized=true;}
     camera.position.lerp(cameraGoal,1-Math.exp(-dt*(observed?8:3)));lookAt.lerp(lookGoal,1-Math.exp(-dt*(observed?12:5)));camera.lookAt(lookAt);
     bubbleTimer+=dt;if(bubbleTimer>.055&&movement>.3){bubbleTimer=0;const b=bubbles[bubbleIndex++%bubbles.length];b.life=1.8;b.mesh.position.copy(sub.position).add(exhaust.set(0,-.05,.8).applyQuaternion(sub.quaternion));}

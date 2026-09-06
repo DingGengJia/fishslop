@@ -1,23 +1,23 @@
 <!doctype html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="theme-color" content="#071e27"/><meta name="description" content="A little submarine. A living aquarium. A cozy 3D fish-feeding game."/><title>Fishslop — A little world below</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🐠%3C/text%3E%3C/svg%3E"/></head>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="theme-color" content="#071e27"/><meta name="description" content="Explore Atlantis in a little submarine. Ancient ruins, a living reef, and a cozy 3D fish-feeding game."/><title>Fishslop — Atlantis</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🐠%3C/text%3E%3C/svg%3E"/></head>
 <body>
-<canvas id="world" aria-label="3D aquarium. Use WASD to pilot, Q and E to change depth, arrow keys to look, and Space to feed."></canvas>
+<canvas id="world" aria-label="3D Atlantis sanctuary. Use WASD to pilot, Q and E to change depth, arrow keys to look, and Space to feed."></canvas>
 <div class="vignette"></div>
 <header>
-  <a class="brand" href="./" aria-label="Fishslop home"><svg viewBox="0 0 40 30" fill="none"><path d="M29 15c-8-14-20-12-26 0 6 12 18 14 26 0Zm0 0 9-10v20Z" fill="currentColor"/><circle cx="11" cy="12" r="2" fill="#0a2932"/></svg>fishslop<span class="alpha">VOL. 09</span></a>
-  <div class="habitat"><span class="live-dot"></span> SUNLIT SHOALS <span class="divider">/</span> YOUR LITTLE ECOSYSTEM</div>
+  <a class="brand" href="./" aria-label="Fishslop home"><svg viewBox="0 0 40 30" fill="none"><path d="M29 15c-8-14-20-12-26 0 6 12 18 14 26 0Zm0 0 9-10v20Z" fill="currentColor"/><circle cx="11" cy="12" r="2" fill="#0a2932"/></svg>fishslop<span class="alpha">VOL. 10</span></a>
+  <div class="habitat"><span class="live-dot"></span> ATLANTIS <span class="divider">/</span> THE SUNKEN SANCTUARY</div>
   <div class="top-actions"><span id="performance" title="自动调整分辨率以保持流畅">-- FPS</span><button id="sound" class="icon-button" title="Toggle sound" aria-label="Enable sound">♪</button><button id="help" class="icon-button" title="Controls" aria-label="Show controls">?</button><button id="pause" class="icon-button" title="Pause (Esc)" aria-label="Pause game">Ⅱ</button></div>
 </header>
 <main id="hud">
   <aside class="left-panel">
-    <div class="eyebrow"><span class="tiny-line"></span> AQUARIUM 001</div>
-    <h1>A little world<br/>below<span>.</span></h1>
-    <p class="intro-copy">Feed a friendship. Grow a reef.<br/>Make yourself at home.</p>
-    <div class="stats"><div><span class="stat-label">YOUR COINS</span><strong class="coin-stat"><span class="coin-icon">✦</span><span id="coins">80</span></strong></div><div><span class="stat-label">HAPPY RESIDENTS</span><strong><span id="population">5</span><small> / 48</small></strong></div></div>
+    <div class="eyebrow"><span class="tiny-line"></span> EXPEDITION 001</div>
+    <h1>A lost city.<br/>Alive again<span>.</span></h1>
+    <p class="intro-copy">Drift through the ruins.<br/>Bring the sanctuary to life.</p>
+    <div class="stats"><div><span class="stat-label">YOUR COINS</span><strong class="coin-stat"><span class="coin-icon">✦</span><span id="coins">80</span></strong></div><div><span class="stat-label">HAPPY RESIDENTS</span><strong><span id="population">5</span><small> / 96</small></strong></div></div>
     <div class="mission"><div class="mission-top"><span class="eyebrow">A THRIVING LITTLE REEF</span><span id="mission-percent">0%</span></div><div class="progress-track"><div id="mission-progress"></div></div><p id="mission-description">Raise 10 fish & collect 500 coins</p><div class="mission-steps"><span id="fish-goal">5 / 10 fish</span><span id="coin-goal">0 / 500 coins</span></div></div>
-    <div id="welcome"><p>You're the caretaker.<br/>Your submarine is the dinner bell.</p><button id="start" class="primary">Let's dive in <span>↗</span></button><span class="welcome-note">A cozy aquarium. At your own pace.</span></div>
+    <div id="welcome"><p>An ancient city. A new beginning.<br/>Care for the life among the ruins.</p><button id="start" class="primary">Let's dive in <span>↗</span></button><span class="welcome-note">Explore the sunken sanctuary. At your own pace.</span></div>
   </aside>
-  <div class="tank-caption"><span class="live-dot"></span><span id="scene-state">AQUARIUM LIVE</span><span class="caption-line"></span><span>24°C</span></div>
+  <div class="tank-caption"><span class="live-dot"></span><span id="scene-state">ATLANTIS LIVE</span><span class="caption-line"></span><span>24°C</span></div>
   <aside class="telemetry"><div class="sonar-header"><span class="eyebrow">REEF RADAR</span><span class="live-dot"></span></div><canvas id="radar" width="180" height="180" aria-label="Radar: fish in orange, coins in gold, submarine in white"></canvas><div class="depth"><span>DEPTH</span><strong id="depth"><span id="depth-number">13.0</span> <small>m</small></strong></div><div class="health"><span>REEF WELLBEING</span><span id="wellbeing">65%</span><div><i id="wellbeing-bar"></i></div></div></aside>
   <button id="stop-observing" hidden>返回驾驶 · WASD</button><div id="reticle"><i></i><span>SCOUT–01</span></div>
   <div id="toast" role="status" aria-live="polite"></div>
@@ -38,6 +38,6 @@
 </main>
 <div id="mobile-controls"><div class="direction-pad"><button data-key="KeyW" aria-label="Forward">↑</button><button data-key="KeyA" aria-label="Strafe left">←</button><button data-key="KeyS" aria-label="Backward">↓</button><button data-key="KeyD" aria-label="Strafe right">→</button></div><div><button data-key="KeyE" aria-label="Ascend">＋</button><button data-key="KeyQ" aria-label="Descend">−</button><button data-key="Space">FEED</button></div></div>
 <dialog id="modal"><button id="close-modal" class="close" aria-label="Close dialog">×</button><div class="eyebrow">CAPTAIN'S NOTEBOOK</div><h2 id="modal-title">Make yourself at home.</h2><div id="modal-content"></div><button id="resume" class="primary">Back to the reef <span>↗</span></button></dialog>
-<div id="loading"><div class="loading-fish">↝</div><strong>Filling your little ocean…</strong><span>Polishing the portholes. Meeting the neighbors.</span></div>
+<div id="loading"><div class="loading-fish">↝</div><strong>Discovering Atlantis…</strong><span>Uncovering the ruins. Meeting the neighbors.</span></div>
 <script type="module" src="/src/main.js"></script>
 </body></html>

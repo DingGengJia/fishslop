@@ -13,7 +13,7 @@ world.renderer.setPixelRatio(1);world.renderer.setSize(1280,720,false);world.cam
 const setRatio=world.renderer.setPixelRatio.bind(world.renderer);world.renderer.setPixelRatio=()=>setRatio(1);
 // Remove the existing printed tank sign in this recording only. No HUD is loaded.
 let hiddenSigns=0;world.scene.traverse(o=>{const map=o.material?.map;if(map?.isCanvasTexture&&map.image.width===2048&&map.image.height===640){o.visible=false;hiddenSigns++;}});
-if(hiddenSigns!==1)throw new Error('Expected exactly one tank sign to hide');
+// Atlantis has no printed tank sign; legacy aquarium scenes may still have one.
 let g;function reset(){g=createGame(7142);g.sub.y=5.4;g.sub.z=9;ensureDiversity(g);world.stopObserving();}reset();await world.prepare(g);
 const shots=[{end:18,type:null},{end:27,type:0},{end:36,type:3},{end:45,type:5},{end:54,type:6},{end:63,type:9},{end:72,type:8},{end:84,type:7},{end:90,type:null}];
 world.render(g,STEP,true);
