@@ -59,6 +59,10 @@ npm run assets  # optional; requires Blender on PATH
 
 The submarine and fish are original Blender assets. The reef geometry is original procedural geometry. No commercial game assets are used. Fonts are DM Sans and Manrope via Google Fonts, with system fallbacks. Three.js model loading follows its [official glTF guide](https://threejs.org/manual/en/loading-3d-models.html).
 
+## Demo recording
+
+See [the recording guide](docs/recording.md) for a complete gameplay capture with the original UI, an optional clean scene capture, and local video verification.
+
 ## Scope and known limits
 
 This is a first playable standalone game, with one aquarium biome and a peaceful progression loop. Tank walls and large reef rocks have simplified colliders; small plants and decorative ruins are non-solid. Saves are local to one browser. There are no enemies, multiplayer, or cloud sync. WebGL performance depends on the device; the renderer starts with pixel ratio capped at 1.25 and can adapt down to 0.85.

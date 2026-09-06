@@ -3,3 +3,7 @@ dist/
 test-results/
 playwright-report/
 public/models/*.blend1
+
+# Generated demo videos, frame captures, and native inspection binaries
+/artifacts/clean-demo-*/
+/artifacts/full-gameplay-*/

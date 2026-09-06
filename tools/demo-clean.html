@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><title>Fishslop — clean 90 second recording</title>
+<style>body{margin:0;background:#061c23;color:#d9ece8;font:15px system-ui}nav{display:flex;align-items:center;gap:18px;padding:12px}button,a{padding:10px 18px;background:#d4eddb;border:0;border-radius:8px;color:#123e45}canvas{display:block;width:min(100vw,1280px);height:auto}video{max-width:100%;display:block}</style>
+<nav><button id="record" disabled>录制 90 秒纯画面</button><a id="download" hidden>下载视频</a><span id="status">准备模型…</span></nav>
+<canvas id="world"></canvas><video id="preview" controls hidden></video>
+<script type="module">
+import {createWorld} from '../src/scene.js';
+import {createGame,ensureDiversity,tick,feed,STEP} from '../src/simulation.js';
+const DURATION=90,canvas=document.querySelector('canvas'),status=document.querySelector('#status'),button=document.querySelector('#record'),download=document.querySelector('#download');
+const world=await createWorld(canvas);
+world.renderer.setPixelRatio(1);world.renderer.setSize(1280,720,false);world.camera.aspect=1280/720;world.camera.updateProjectionMatrix();
+// Keep capture resolution fixed when the game normally adapts its pixel ratio.
+const setRatio=world.renderer.setPixelRatio.bind(world.renderer);world.renderer.setPixelRatio=()=>setRatio(1);
+// Remove the existing printed tank sign in this recording only. No HUD is loaded.
+let hiddenSigns=0;world.scene.traverse(o=>{const map=o.material?.map;if(map?.isCanvasTexture&&map.image.width===2048&&map.image.height===640){o.visible=false;hiddenSigns++;}});
+if(hiddenSigns!==1)throw new Error('Expected exactly one tank sign to hide');
+let g;function reset(){g=createGame(7142);g.sub.y=5.4;g.sub.z=9;ensureDiversity(g);world.stopObserving();}reset();await world.prepare(g);
+const shots=[{end:18,type:null},{end:27,type:0},{end:36,type:3},{end:45,type:5},{end:54,type:6},{end:63,type:9},{end:72,type:8},{end:84,type:7},{end:90,type:null}];
+world.render(g,STEP,true);
+const mime=['video/mp4;codecs=avc1.42001E','video/mp4','video/webm;codecs=vp9'].find(m=>MediaRecorder.isTypeSupported(m));
+button.disabled=false;status.textContent='准备完成 · 1280×720 · 无字幕 / 无界面 / 无标牌';
+button.onclick=()=>{button.disabled=true;download.hidden=true;reset();const stream=canvas.captureStream(30),chunks=[],recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:7000000});let last=performance.now(),start=last,acc=0,lastShot=-1,lastFeed=-2;
+recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
+recorder.onstop=()=>{const blob=new Blob(chunks,{type:mime}),url=URL.createObjectURL(blob),ext=mime.includes('mp4')?'mp4':'webm';download.href=url;download.download='fishslop-clean-90s-20260906.'+ext;download.hidden=false;const preview=document.querySelector('#preview');preview.src=url;preview.hidden=false;status.textContent='录制完成 · '+(blob.size/1048576).toFixed(1)+' MB · '+ext;button.disabled=false;stream.getTracks().forEach(t=>t.stop());};
+recorder.start(1000);
+function frame(now){const elapsed=Math.min(DURATION,(now-start)/1000),dt=Math.min(.1,(now-last)/1000);last=now;acc+=dt;let index=shots.findIndex(s=>elapsed<s.end);if(index<0)index=shots.length-1;const shot=shots[index];if(index!==lastShot){lastShot=index;shot.type===null?world.stopObserving():world.focusSpecies(shot.type);}
+const input=elapsed<18?{forward:elapsed<13?.13:.05,turn:elapsed<9?.035:-.045}:elapsed>84?{forward:.06,turn:.06}:{};
+while(acc>=STEP){tick(g,input,STEP);acc-=STEP;}if((elapsed<18||elapsed>84)&&elapsed-lastFeed>1.2){feed(g);lastFeed=elapsed;}
+// Coins carry a modeled numeral, so omit them for a completely text-free frame.
+g.drops.length=0;world.render(g,dt,true);status.textContent='录制中 '+elapsed.toFixed(1)+' / '+DURATION+' 秒';if(elapsed<DURATION)requestAnimationFrame(frame);else recorder.stop();}requestAnimationFrame(frame);};
+</script></html>
