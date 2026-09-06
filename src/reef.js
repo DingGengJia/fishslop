@@ -24,10 +24,12 @@ export function batchMeshes(root,excluded=[],includeTransparent=false){
 
 export function createReef(scene){
   let seed=415;const rand=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
-  const clock={value:0},plants=[],materials=new Map();
+  const clock={value:0},night={value:0},plants=[],materials=new Map();
   const causticGLSL=`
     uniform float reefTime;
+    uniform float reefNight;
     varying vec3 reefWorld;
+    varying vec3 reefNormal;
     float reefCaustic(vec2 p){
       p+=.34*vec2(sin(p.y*1.5+reefTime*.23),cos(p.x*1.4-reefTime*.19));
       float a=sin(p.x*3.5+p.y*.8+reefTime*.18);
@@ -38,11 +40,11 @@ export function createReef(scene){
     }
   `;
   function caustics(material,strength=.18){material.onBeforeCompile=shader=>{
-    shader.uniforms.reefTime=clock;shader.vertexShader='varying vec3 reefWorld;\n'+shader.vertexShader;
-    shader.vertexShader=shader.vertexShader.replace('#include <worldpos_vertex>','#include <worldpos_vertex>\nreefWorld=(modelMatrix*vec4(transformed,1.0)).xyz;');
+    shader.uniforms.reefTime=clock;shader.uniforms.reefNight=night;shader.vertexShader='varying vec3 reefWorld; varying vec3 reefNormal;\n'+shader.vertexShader;
+    shader.vertexShader=shader.vertexShader.replace('#include <worldpos_vertex>','#include <worldpos_vertex>\nreefWorld=(modelMatrix*vec4(transformed,1.0)).xyz; reefNormal=normalize(mat3(modelMatrix)*objectNormal);');
     shader.fragmentShader=causticGLSL+shader.fragmentShader;
-    shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>\nfloat lightNet=reefCaustic(reefWorld.xz*.72+vec2(sin(reefTime*.12)*.4,reefTime*.025));\ndiffuseColor.rgb*=1.0+lightNet*${strength.toFixed(2)};`);
-  };material.customProgramCacheKey=()=>`reef-caustic-${strength}`;return material;}
+    shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>\nvec2 surfacePoint=reefWorld.xz+vec2(-.346,.346)*(21.0-reefWorld.y);\nvec2 refracted=surfacePoint*.72+vec2(sin(reefTime*.12)*.4,reefTime*.025);\nfloat lightNet=reefCaustic(refracted)+.4*reefCaustic(refracted*1.27+vec2(5.3,-reefTime*.06));\nfloat facing=.16+.84*max(0.0,dot(normalize(reefNormal),normalize(vec3(-.346,1.0,.346))));\nfloat depthFade=mix(.65,1.0,clamp(reefWorld.y/21.0,0.0,1.0));\nfloat sunlight=lightNet*facing*depthFade*${strength.toFixed(2)}*mix(3.8,.16,reefNight);\ndiffuseColor.rgb*=vec3(1.0)+sunlight*vec3(1.0,.98,.78);`);
+  };material.customProgramCacheKey=()=>`reef-caustic-refraction-v2-${strength}`;return material;}
   const mat=color=>{if(!materials.has(color))materials.set(color,caustics(new THREE.MeshStandardMaterial({color,roughness:.72}),.12));return materials.get(color);};
   function mesh(geo,material,pos=[0,0,0],scale=[1,1,1],parent=scene){const o=new THREE.Mesh(geo,material);o.position.set(...pos);o.scale.set(...scale);o.castShadow=o.receiveShadow=true;parent.add(o);return o;}
   const sphere=new THREE.SphereGeometry(1,12,8);
@@ -55,14 +57,32 @@ export function createReef(scene){
   for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i);p.setZ(i,.08*Math.sin(x*.6)*Math.cos(y*.45)+.028*Math.sin(x*3+y*.6));}floorGeo.computeVertexNormals();
   const floorMat=caustics(new THREE.MeshStandardMaterial({map:texture,bumpMap:texture,bumpScale:.06,roughness:.92}),.25);
   const floor=mesh(floorGeo,floorMat);floor.rotation.x=-Math.PI/2;floor.castShadow=false;
-  const water=new THREE.ShaderMaterial({uniforms:{time:clock},side:THREE.DoubleSide,transparent:true,depthWrite:false,
+  const water=new THREE.ShaderMaterial({uniforms:{time:clock,night},side:THREE.DoubleSide,transparent:true,depthWrite:false,
     vertexShader:'varying vec2 waterUV;void main(){waterUV=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
-    fragmentShader:`uniform float time;varying vec2 waterUV;void main(){vec2 p=waterUV*vec2(38.,29.);float w=sin(p.x*1.2+sin(p.y+time*.3))*sin(p.y*.7+cos(p.x+time*.2));float glint=pow(max(0.,w),12.);vec3 col=mix(vec3(.15,.48,.47),vec3(.77,.89,.70),glint*.65);gl_FragColor=vec4(col,.73);}`});
+    fragmentShader:`uniform float time;uniform float night;varying vec2 waterUV;void main(){vec2 p=waterUV*vec2(38.,29.);float w=sin(p.x*1.2+sin(p.y+time*.3))*sin(p.y*.7+cos(p.x+time*.2));float glint=pow(max(0.,w),12.);vec3 col=mix(vec3(.15,.48,.47),vec3(.77,.89,.70),glint*.65);col=mix(col,mix(vec3(.009,.025,.085),vec3(.12,.23,.40),glint*.65),night);gl_FragColor=vec4(col,.73);}`});
   mesh(new THREE.PlaneGeometry(140,130),water,[0,21,0]).rotation.x=Math.PI/2;
-  // A few soft shafts: gradient alpha, no hard solid cones.
-  const rayCanvas=document.createElement('canvas');rayCanvas.width=64;rayCanvas.height=128;const rc=rayCanvas.getContext('2d');const grad=rc.createLinearGradient(0,0,64,0);grad.addColorStop(0,'black');grad.addColorStop(.5,'white');grad.addColorStop(1,'black');rc.fillStyle=grad;rc.fillRect(0,0,64,128);
-  const rayMat=new THREE.MeshBasicMaterial({color:'#cbf9da',alphaMap:new THREE.CanvasTexture(rayCanvas),transparent:true,opacity:.025,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide});
-  for(let i=0;i<5;i++){const ray=mesh(new THREE.PlaneGeometry(3,30),rayMat,[-18+i*9,12,-10+(i%2)*7]);ray.rotation.z=-.20;ray.castShadow=false;}
+  // Soft refracted shafts, merged into one draw. A pair of crossed ribbons
+  // keeps each shaft visible while steering, with no per-beam shadow lights.
+  const rayMat=new THREE.ShaderMaterial({uniforms:{time:clock,night},transparent:true,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,
+    vertexShader:`varying vec2 rayUV;varying vec3 rayWorld;void main(){rayUV=uv;vec4 world=modelMatrix*vec4(position,1.0);rayWorld=world.xyz;gl_Position=projectionMatrix*viewMatrix*world;}`,
+    fragmentShader:`uniform float time;uniform float night;varying vec2 rayUV;varying vec3 rayWorld;
+    void main(){
+      float phase=rayWorld.x*.17+rayWorld.z*.12;
+      float u=rayUV.x+.045*sin(rayUV.y*9.0+time*.3+phase);
+      float ribbon=pow(max(0.0,sin(clamp(u,0.0,1.0)*3.14159)),3.0);
+      float ends=smoothstep(0.0,.20,rayUV.y)*(1.0-smoothstep(.90,1.0,rayUV.y));
+      float shimmer=.72+.28*sin(time*.65+phase+rayUV.y*4.0);
+      float distanceFade=exp(-length(cameraPosition-rayWorld)*.025);
+      float alpha=ribbon*ends*shimmer*distanceFade*mix(.12,.005,night);
+      gl_FragColor=vec4(mix(vec3(.67,.84,.72),vec3(.3,.48,.8),night),alpha);
+    }`});
+  const shafts=[];
+  for(let i=0;i<10;i++)for(const cross of [0,Math.PI/2]){
+    const geo=new THREE.PlaneGeometry(i%3===0?3.6:2.2,24,1,12);
+    const transform=new THREE.Matrix4().compose(new THREE.Vector3(-25+i*5.8,11,i%2?-10:5),new THREE.Quaternion().setFromEuler(new THREE.Euler(0,cross,.33)),new THREE.Vector3(1,1,1));
+    geo.applyMatrix4(transform);shafts.push(geo);
+  }
+  const sunrays=mesh(mergeGeometries(shafts),rayMat);sunrays.castShadow=sunrays.receiveShadow=false;for(const geo of shafts)geo.dispose();
   // Irregular stratified rocks with vertex-colored minerals and algae.
   const rockMaterial=caustics(new THREE.MeshStandardMaterial({vertexColors:true,roughness:.9}),.2);
   function rock(x,z,size){
@@ -186,5 +206,5 @@ export function createReef(scene){
   const dustPositions=new Float32Array(650*3);for(let i=0;i<650;i++){dustPositions[i*3]=(rand()-.5)*48;dustPositions[i*3+1]=rand()*21;dustPositions[i*3+2]=(rand()-.5)*36;}
   const dustGeo=new THREE.BufferGeometry();dustGeo.setAttribute('position',new THREE.BufferAttribute(dustPositions,3));
   const dust=new THREE.Points(dustGeo,new THREE.PointsMaterial({color:'#e2edbc',size:.035,transparent:true,opacity:.45,depthWrite:false}));scene.add(dust);
-  return {update(t){clock.value=t;atlantis.update(t);dust.rotation.y=Math.sin(t*.025)*.035;}};
+  return {applyCaustics:caustics,setNight(value){night.value=value;atlantis.setNight(value);dust.material.color.set(value>.5?'#70dcff':'#e2edbc');dust.material.opacity=.45+value*.3;dust.material.size=.035+value*.025;},update(t){clock.value=t;atlantis.update(t);dust.rotation.y=Math.sin(t*.025)*.035;}};
 }

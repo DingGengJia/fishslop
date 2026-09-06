@@ -2,6 +2,32 @@
 
 A playable, cozy 3D underwater game set among the ruins of Atlantis. Pilot a small submarine from a third-person chase camera, feed a neighborhood of fish, collect their coins, and grow your reef.
 
+## Day and night dives
+
+Use the **☾ 夜晚 / ☀ 白天** switch in the top-right corner. The first visit defaults
+to night; the selection is stored separately from game progress and survives a
+reload. Switching smoothly changes moonlight, water color, caustics, fog, jellyfish
+glow, submarine headlights and the illuminated ruin markers. Gameplay and saved
+residents remain unchanged. The central ruin adds one light without shadows and
+one soft halo sprite; outer markers share a material rather than adding many lights.
+
+Night validation: the existing 39 tests and production build pass. Switching to
+night and reloading preserved the selected mode, and the browser reported no
+rendering errors. A local 72-resident night sample at 1422 × 800, pixel ratio 1.25,
+measured 16.0 ms median / 17.3 ms p95 frame time, 302 draw calls and 830,885 triangles.
+Reproduce with `/tools/performance.html?count=72&mixed&roster&night`; these short
+local measurements are not a performance guarantee for other devices.
+
+## Refracted daylight
+
+Daytime now has animated caustics projected along the sun direction onto sand,
+rocks, stonework and the submarine. Two drifting wave patterns combine, with
+surface orientation and depth controlling their strength. Ten soft crossed
+shafts shimmer underwater and are merged into one draw call. Both effects fade
+with the saved day/night switch and use simulation time so pausing freezes them.
+This is a stylized shader approximation of refracted sunlight, not ray-traced
+water optics; no new lights or post-processing passes are added.
+
 ## Denser living schools
 
 There are now 16 species, 72 initial residents and space for 96. Yellow tangs,

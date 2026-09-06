@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createLighting } from './lighting.js';
 import { clampCameraPosition } from './world-bounds.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
@@ -8,7 +9,7 @@ import { prepareSpeciesModel } from './model-preparation.js';
 import {createFishInstances} from './fish-instances.js';
 import { speciesOf, adultScale, MAX_RESIDENTS } from './species.js';
 
-export async function createWorld(canvas){
+export async function createWorld(canvas,{night=false}={}){
   const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
   renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.setSize(innerWidth,innerHeight);
   renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
@@ -16,7 +17,7 @@ export async function createWorld(canvas){
   const scene=new THREE.Scene();scene.background=new THREE.Color('#073f53');scene.fog=new THREE.FogExp2('#075164',.033);
   const pmrem=new THREE.PMREMGenerator(renderer),room=new RoomEnvironment();const environment=pmrem.fromScene(room,.04);scene.environment=environment.texture;scene.environmentIntensity=.36;room.dispose();pmrem.dispose();
   const camera=new THREE.PerspectiveCamera(57,innerWidth/innerHeight,.1,130);
-  scene.add(new THREE.HemisphereLight('#bfe9ee','#365957',1.25));
+  const hemisphere=new THREE.HemisphereLight('#bfe9ee','#365957',1.25);scene.add(hemisphere);
   const sun=new THREE.DirectionalLight('#fff0cf',2.6);sun.position.set(-9,26,9);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);
   Object.assign(sun.shadow.camera,{left:-27,right:27,top:27,bottom:-27,near:1,far:70});sun.shadow.bias=-.0003;sun.shadow.normalBias=.045;scene.add(sun);
   const fill=new THREE.DirectionalLight('#8dd6e5',.70);fill.position.set(15,10,-16);scene.add(fill);
@@ -27,6 +28,8 @@ export async function createWorld(canvas){
   const rotor=new THREE.Group();rotor.position.set(0,0,-1.95);subModel.add(rotor);sub.updateMatrixWorld(true);
   const blades=[];subModel.traverse(o=>{if(o.isMesh&&/Propeller_blade/.test(o.name))blades.push(o);});for(const blade of blades)rotor.attach(blade);batchMeshes(subModel,[rotor]);
   subModel.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+  const subMaterials=new Set();subModel.traverse(o=>{if(o.isMesh&&!o.material.transparent&&o.material.isMeshStandardMaterial)subMaterials.add(o.material);});
+  for(const material of subMaterials)reef.applyCaustics(material,.10);
   const headlight=new THREE.SpotLight('#d2fbed',28,14,.48,.75,1.4);headlight.position.set(0,-.2,-1);headlight.target.position.set(0,-2,-10);sub.add(headlight,headlight.target);
   const fishModels=new Map(),foodModels=new Map(),coinModels=new Map();
   const foodGeo=new THREE.DodecahedronGeometry(.10,0),foodMat=new THREE.MeshStandardMaterial({color:'#dca366',roughness:.95});
@@ -38,6 +41,7 @@ export async function createWorld(canvas){
   const templates=[...fishAssets.map(a=>a.scene),...createSpeciesModels()].map((body,type)=>{
     return prepareSpeciesModel(body,type,renderer.capabilities.getMaxAnisotropy());
   });
+  const lighting=createLighting({scene,renderer,hemisphere,sun,fill,headlight,reef,templates,night});
   const instancePools=new Map();
   function fishModel(f){
     const group=new THREE.Group(),template=templates[f.type],body=template.body.clone(true);body.rotation.y=Math.PI;group.add(body);
@@ -58,7 +62,7 @@ export async function createWorld(canvas){
   renderer.shadowMap.autoUpdate=false;
   const metrics={fps:60,drawCalls:0,triangles:0,pixelRatio:renderer.getPixelRatio()};
   function render(g,dt,playing){
-    const t=g.time,s=g.sub;reef.update(t);
+    const t=g.time,s=g.sub;lighting.update(dt);reef.update(t);
     sub.position.set(s.x,s.y,s.z);sub.rotation.set(s.trim??s.pitch,s.heading??s.yaw,(s.bank??0)+Math.sin(t*1.4)*.012,'YXZ');subModel.position.y=Math.sin(t*1.8)*.025;
     const movement=Math.hypot(s.vx,s.vy,s.vz);rotor.rotation.z+=dt*(4+movement*5);
     sync(fishModels,g.fish,fishModel,(m,f)=>{
@@ -103,5 +107,5 @@ export async function createWorld(canvas){
     metrics.fps+=(1/Math.max(dt,.001)-metrics.fps)*.04;metrics.drawCalls=renderer.info.render.calls;metrics.triangles=renderer.info.render.triangles;metrics.pixelRatio=renderer.getPixelRatio();
   }
   function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));}
-  addEventListener('resize',resize);return {render,renderer,scene,camera,metrics,async prepare(g){for(const f of g.fish)if(!fishModels.has(f.id))fishModels.set(f.id,fishModel(f));await renderer.compileAsync(scene,camera);},focusSpecies(type){focusType=type;},stopObserving(){focusType=null;}};
+  addEventListener('resize',resize);return {render,renderer,scene,camera,metrics,setNight:lighting.setNight,async prepare(g){for(const f of g.fish)if(!fishModels.has(f.id))fishModels.set(f.id,fishModel(f));await renderer.compileAsync(scene,camera);},focusSpecies(type){focusType=type;},stopObserving(){focusType=null;}};
 }

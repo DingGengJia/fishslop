@@ -16,3 +16,15 @@ header{height:90px;border:0;padding:0 3%;gap:20px}.brand{font-size:28px}.brand s
 #performance{font-size:10px;color:#b6d6c7;white-space:nowrap;align-self:center;min-width:44px}.stats{right:240px}
 .species-control{grid-column:1/-1;display:flex;gap:12px;align-items:center;padding:8px 4px;border-bottom:1px solid #abcabd30}.species-control label{font-size:12px}.species-control select{background:#123c43;color:#eaf5ed;border:1px solid #93c9b86b;border-radius:5px;padding:8px;font:12px system-ui}.species-control button,#stop-observing{border:1px solid #acd6c46b;border-radius:5px;padding:9px 12px;background:#16484c;color:#d6eedc}.species-control span{font-size:11px;color:#a7c8bd}.dock{max-height:55vh;overflow:auto}.dock-title{grid-row:2}.dock-open #toast{bottom:300px}#stop-observing{position:fixed;top:104px;left:50%;transform:translateX(-50%);z-index:3;font:12px system-ui}#stop-observing[hidden]{display:none}
 @media(max-width:760px){#performance{font-size:8px}.species-control{flex-wrap:wrap;gap:7px}.species-control label{display:none}.species-control select{max-width:180px}.species-control span{width:100%}.stats{right:20px}.dock-open #dock-toggle{bottom:340px}.dock{bottom:178px}.dock-open #toast{bottom:420px}}
+
+/* The mode switch remains visible on desktop and touch screens. */
+.lighting-button{border:1px solid #a9d7e04d;border-radius:16px;padding:6px 10px;background:#163f4a99;color:#dcf0ec;font:11px system-ui;white-space:nowrap;cursor:pointer}
+.lighting-button:hover{background:#305675}.lighting-button:focus-visible{outline:2px solid #bcefff;outline-offset:3px}
+.stats{right:330px}
+.night .lighting-button{background:#173552cc;color:#bce9ff;border-color:#6896c366}
+.night .left-panel h1{color:#e0edff;text-shadow:0 3px 30px #020919}.night .primary{background:#9ed4e6}
+.night .vignette{opacity:.65}.night .mission p,.night .welcome-note{color:#b9cde2}
+@media(min-width:761px) and (max-width:1200px){.habitat{display:none}}
+@media(max-width:760px){.stats{right:20px}.lighting-button{font-size:10px;padding:6px 8px}.top-actions{gap:3px}}
+
+@media(max-width:480px){header{padding:0 12px}.brand{font-size:20px}.brand .alpha{display:none}.brand svg{width:22px}#performance{min-width:32px}.top-actions .icon-button{width:26px;height:30px}.lighting-button{padding:6px;font-size:10px}}

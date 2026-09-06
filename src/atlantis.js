@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {CITY_BOXES,CITY_CYLINDERS,CITY_DOMES} from './city-layout.js';
+import {CITY_BOXES,CITY_CYLINDERS,CITY_DOMES,CITY_PAVILIONS} from './city-layout.js';
 import { COLUMNS, TEMPLE_STEPS, GATE, DAIS } from './atlantis-layout.js';
 
 // Static ruins share five materials and join the reef's existing geometry batches.
@@ -11,6 +11,14 @@ export function createAtlantis(scene,caustics){
   const bronze=caustics(new THREE.MeshStandardMaterial({color:'#92764d',metalness:.58,roughness:.53}),.15);
   const patina=new THREE.MeshStandardMaterial({color:'#398b85',roughness:.84});
   const glow=new THREE.MeshStandardMaterial({color:'#91fff0',emissive:'#31ceb9',emissiveIntensity:1.8,roughness:.4});
+  const beacon=new THREE.MeshStandardMaterial({color:'#74b9b6',emissive:'#329ee7',emissiveIntensity:.15,roughness:.4});
+  const sanctumLight=new THREE.PointLight('#47bce9',0,17,2);sanctumLight.position.set(0,4.2,-14.6);scene.add(sanctumLight);
+  const haloCanvas=document.createElement('canvas');haloCanvas.width=haloCanvas.height=128;
+  const hc=haloCanvas.getContext('2d'),gradient=hc.createRadialGradient(64,64,0,64,64,64);
+  gradient.addColorStop(0,'rgba(180,241,255,.85)');gradient.addColorStop(.2,'rgba(74,181,248,.28)');gradient.addColorStop(1,'rgba(15,60,140,0)');hc.fillStyle=gradient;hc.fillRect(0,0,128,128);
+  const haloMaterial=new THREE.SpriteMaterial({map:new THREE.CanvasTexture(haloCanvas),transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false});
+  const halo=new THREE.Sprite(haloMaterial);halo.position.set(0,4.2,-14.6);halo.scale.set(4,4,1);scene.add(halo);
+
   let seed=804;const rand=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
   function weather(geo){
     const p=geo.attributes.position,colors=[];const base=new THREE.Color(),moss=new THREE.Color('#53877b');
@@ -96,10 +104,15 @@ export function createAtlantis(scene,caustics){
     if(c.part==='pier')add(new THREE.CylinderGeometry(c.radius+.08,c.radius+.08,.12,16),bronze,c.x,.52,c.z);
   }
   for(const c of CITY_DOMES)add(new THREE.SphereGeometry(c.width*.8,24,12,0,Math.PI*2,0,Math.PI/2),dark,c.x,c.height+.15,c.z);
+  // Thin luminous bands guide night exploration without a light per building.
+  for(const c of CITY_PAVILIONS){
+    const r=c.width*(c.round?.8:.64),marker=ring(r,.035,c.x,.46,c.z,beacon);marker.rotation.x=Math.PI/2;
+  }
+  for(let z=-8;z<13;z+=2.4)for(const x of [-2,2])box(.12,.06,.34,x,.12,z,beacon);
   // Loose masonry gathers at the flanks rather than blocking the approach.
   for(let i=0;i<44;i++){
     const side=i%2?1:-1,x=side*(9+rand()*12),z=-16+rand()*31;
     const rubble=box(.35+rand()*.7,.2+rand()*.35,.45+rand()*.6,x,.2,z);rubble.rotation.set(rand()*.2,rand()*6,rand()*.15);
   }
-  return {animatedObjects:[core],update(t){core.rotation.y=Math.sin(t*.12)*.14;crystal.rotation.y=t*.18;crystal.position.y=Math.sin(t*.9)*.12;}};
+  return {animatedObjects:[core],setNight(value){glow.emissiveIntensity=1.8+value*2.2;beacon.emissiveIntensity=.15+value*3.5;sanctumLight.intensity=value*100;haloMaterial.opacity=value*.7;},update(t){core.rotation.y=Math.sin(t*.12)*.14;crystal.rotation.y=t*.18;crystal.position.y=Math.sin(t*.9)*.12;}};
 }

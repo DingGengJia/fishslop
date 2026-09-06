@@ -3,7 +3,7 @@ import {createWorld} from '../src/scene.js';
 import {createGame,ensureDiversity,addFish,tick,STEP} from '../src/simulation.js';
 import {MAX_RESIDENTS,SPECIES} from '../src/species.js';
 const out=document.querySelector('#result'),g=createGame(7142),params=new URLSearchParams(location.search),count=Math.max(5,Math.min(MAX_RESIDENTS,Number(params.get('count'))||17)),mixed=params.has('mixed');if(params.has('roster'))ensureDiversity(g);let spawn=0;while(g.fish.length<count){addFish(g,spawn++%(mixed?SPECIES.length:3));}
-const w=await createWorld(document.querySelector('canvas'));await w.prepare?.(g);let last=performance.now(),frames=0,times=[],renderTimes=[];
+const w=await createWorld(document.querySelector('canvas'),{night:params.has('night')});await w.prepare?.(g);let last=performance.now(),frames=0,times=[],renderTimes=[];
 function frame(now){const dt=(now-last)/1000;last=now;tick(g,{},STEP);const start=performance.now();w.render(g,STEP,true);const duration=performance.now()-start;
 if(frames++>60){times.push(dt*1000);renderTimes.push(duration);}if(times.length<180){requestAnimationFrame(frame);return;}
 times.sort((a,b)=>a-b);renderTimes.sort((a,b)=>a-b);out.textContent=JSON.stringify({residents:g.fish.length,viewport:[innerWidth,innerHeight],pixelRatio:w.renderer.getPixelRatio(),drawCalls:w.renderer.info.render.calls,triangles:w.renderer.info.render.triangles,medianFrameMs:+times[90].toFixed(2),p95FrameMs:+times[171].toFixed(2),medianRenderSubmitMs:+renderTimes[90].toFixed(2),geometries:w.renderer.info.memory.geometries,textures:w.renderer.info.memory.textures},null,2);

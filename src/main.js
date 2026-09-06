@@ -11,6 +11,21 @@ const newArrivals=ensureDiversity(game);
 document.addEventListener('click',e=>{const button=e.target.closest?.('button');if(button&&!$('modal').open)button.blur();});
 const keys=new Set();let drag=null,toastTimer=0,last=performance.now(),accumulator=0,hudTimer=0,saveTimer=0;
 let world;
+const LIGHTING_KEY='fishslop.lighting.v1';
+let nightMode=true;
+try{nightMode=localStorage.getItem(LIGHTING_KEY)!=='day';}catch{}
+function updateLightingUI(){
+  document.body.classList.toggle('night',nightMode);
+  $('lighting').textContent=nightMode?'☾ 夜晚':'☀ 白天';
+  $('lighting').setAttribute('aria-label',nightMode?'切换至白天':'切换至黑夜');
+  $('lighting').setAttribute('aria-pressed',String(nightMode));
+  $('scene-state').textContent=paused?'TAKING A BREATHER':nightMode?'ATLANTIS · NIGHT DIVE':'ATLANTIS LIVE';
+}
+updateLightingUI();
+$('lighting').onclick=()=>{
+  nightMode=!nightMode;world?.setNight(nightMode);updateLightingUI();
+  try{localStorage.setItem(LIGHTING_KEY,nightMode?'night':'day');}catch{}
+};
 const shopButtons=[...document.querySelectorAll('[data-buy]')];
 const speciesSelect=$('species-select');
 speciesSelect.innerHTML=SPECIES.map(sp=>`<option value="${sp.id}">${sp.name} · ${sizeLabel(sp)}</option>`).join('');speciesSelect.value='3';
@@ -27,7 +42,7 @@ function initAudio(){if(audioContext)return;try{audioContext=new AudioContext();
 function tone(freq,duration=.15){if(muted||!audioContext)return;const o=audioContext.createOscillator(),gain=audioContext.createGain();o.type='sine';o.frequency.setValueAtTime(freq,audioContext.currentTime);o.frequency.exponentialRampToValueAtTime(freq*1.35,audioContext.currentTime+duration);gain.gain.setValueAtTime(.055,audioContext.currentTime);gain.gain.exponentialRampToValueAtTime(.001,audioContext.currentTime+duration);o.connect(gain).connect(audioContext.destination);o.start();o.stop(audioContext.currentTime+duration);o.onended=()=>{o.disconnect();gain.disconnect();};}
 function audioState(){if(ambient)ambient.gain.setTargetAtTime(!muted&&playing&&!paused?.018:0,audioContext.currentTime,.15);}
 $('sound').onclick=async()=>{initAudio();if(!audioContext)return;await audioContext.resume();muted=!muted;$('sound').textContent=muted?'♪':'♫';$('sound').setAttribute('aria-label',muted?'Enable sound':'Mute sound');$('sound').setAttribute('aria-pressed',String(!muted));audioState();if(!muted)tone(320);};
-function setPaused(value){paused=value;keys.clear();drag=null;$('pause').textContent=paused?'▷':'Ⅱ';$('pause').setAttribute('aria-label',paused?'Resume game':'Pause game');$('scene-state').textContent=paused?'TAKING A BREATHER':'ATLANTIS LIVE';audioState();}
+function setPaused(value){paused=value;keys.clear();drag=null;$('pause').textContent=paused?'▷':'Ⅱ';$('pause').setAttribute('aria-label',paused?'Resume game':'Pause game');updateLightingUI();audioState();}
 function showModal(title,content){setPaused(true);$('modal-title').textContent=title;$('modal-content').innerHTML=content;if(!$('modal').open)$('modal').showModal();}
 function closeModal(){$('modal').close();setPaused(false);document.activeElement?.blur();}
 $('close-modal').onclick=closeModal;$('resume').onclick=closeModal;
@@ -107,7 +122,7 @@ function frame(now){const dt=Math.min((now-last)/1000,.1);last=now;
   requestAnimationFrame(frame);
 }
 try{
-  world=await createWorld(canvas);await world.prepare(game);selectSpecies();if(newArrivals)save();$('loading').remove();updateHUD();drawRadar();last=performance.now();requestAnimationFrame(frame);
+  world=await createWorld(canvas,{night:nightMode});world.setNight(nightMode);await world.prepare(game);selectSpecies();if(newArrivals)save();$('loading').remove();updateHUD();drawRadar();last=performance.now();requestAnimationFrame(frame);
   // Read-only development telemetry for reproducible browser smoke tests.
   if(import.meta.env.DEV)window.__fishslop={snapshot:()=>JSON.parse(serialize(game)),status:()=>({playing,paused,drawCalls:world.renderer.info.render.calls,triangles:world.renderer.info.render.triangles})};
 }catch(error){console.error(error);$('loading').innerHTML='<strong>The aquarium couldn’t open.</strong><span>Check that WebGL is enabled, then reload to try again.</span><button class="primary" onclick="location.reload()">Try again ↗</button>';}
