@@ -2,6 +2,13 @@
 
 A playable, cozy 3D aquarium game. Pilot a small submarine from a third-person chase camera, feed a neighborhood of fish, collect their coins, and grow your reef.
 
+## Repository and live game
+
+- Source: [DingGengJia/fishslop](https://github.com/DingGengJia/fishslop)
+- Play: [Fishslop on GitHub Pages](https://dinggengjia.github.io/fishslop/)
+- Default branch: `main`
+- Update and deployment guide: [docs/publishing.md](docs/publishing.md)
+
 ## Project prompt
 
 Use the [整合版开发 Prompt](docs/prompt.md) for a reusable task brief covering gameplay, visual quality, species anatomy, scale, performance, validation, and delivery. The original English text and individual follow-up requests remain in [需求沿革](docs/prompt-history.md).
