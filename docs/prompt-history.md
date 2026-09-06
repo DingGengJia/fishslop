@@ -206,3 +206,13 @@ A same-view toggle confirmed the transparent water plane inherited shadow castin
 from the ordinary mesh helper and acted as a solid roof in the depth pass.
 Disable water casting/receiving shadows, retain solid-object shadows, and reduce
 the heavy bottom vignette so it does not resemble a large shadow under the pilot.
+
+
+## Night headlight reach (2026-09-06)
+
+User request (original): “黑夜潜水艇灯光要更亮和更远一些”
+
+Increase night spotlight intensity from 75 to 225 and its range from 20 to 45 m.
+Reduce night distance falloff slightly (1.4 to 1.25) and widen the beam half-angle
+from 0.48 to 0.52 radians. Blend these settings during day/night transitions;
+retain daytime values and reuse the same light without extra shadow passes.

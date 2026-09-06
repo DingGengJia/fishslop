@@ -17,7 +17,9 @@ export function createLighting({scene,renderer,hemisphere,sun,fill,headlight,ree
     scene.environmentIntensity=THREE.MathUtils.lerp(.36,.12,value);
     hemisphere.color.copy(skyDay).lerp(skyNight,value);hemisphere.groundColor.copy(groundDay).lerp(groundNight,value);hemisphere.intensity=THREE.MathUtils.lerp(1.25,.48,value);
     sun.color.copy(sunDay).lerp(sunNight,value);sun.intensity=THREE.MathUtils.lerp(2.6,.38,value);fill.intensity=THREE.MathUtils.lerp(.7,.20,value);
-    headlight.intensity=THREE.MathUtils.lerp(28,75,value);headlight.distance=THREE.MathUtils.lerp(14,20,value);
+    // Extend the night beam without adding another light or shadow pass.
+    headlight.intensity=THREE.MathUtils.lerp(28,225,value);headlight.distance=THREE.MathUtils.lerp(14,45,value);
+    headlight.decay=THREE.MathUtils.lerp(1.4,1.25,value);headlight.angle=THREE.MathUtils.lerp(.48,.52,value);
     renderer.toneMappingExposure=THREE.MathUtils.lerp(1.05,1.12,value);
     for(const {material,color,intensity}of jellyDefaults){material.emissive.copy(color).lerp(jellyGlow,value);material.emissiveIntensity=THREE.MathUtils.lerp(intensity,.8,value);}
     reef.setNight(value);
