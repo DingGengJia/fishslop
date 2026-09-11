@@ -2,6 +2,50 @@
 
 A playable, cozy 3D underwater game set among the ruins of Atlantis. Pilot a small submarine from a third-person chase camera, feed a neighborhood of fish, collect their coins, and grow your reef.
 
+
+## Quick start (beginner friendly)
+
+New to Node or to running projects locally? Follow these steps exactly — it takes about 5 minutes.
+
+**What you need:** Node.js **20.19+** (or 22.12+) and a browser with **WebGL2** (any recent Chrome, Safari, Firefox or Edge).
+
+1. **Install Node.js** — go to [nodejs.org](https://nodejs.org/), download the **LTS** installer for your system and run it.
+   Verify in a terminal (macOS: Terminal / Windows: PowerShell):
+   ```sh
+   node -v      # should print v20.19 or higher (v22.x is fine)
+   npm -v
+   ```
+2. **Download the project**
+   ```sh
+   git clone https://github.com/DingGengJia/fishslop.git
+   cd fishslop
+   ```
+   (No Git yet? Install it from [git-scm.com](https://git-scm.com/downloads), or download the ZIP from the green **Code** button on GitHub and unzip it.)
+3. **Install the dependencies** (run this inside the `fishslop` folder)
+   ```sh
+   npm install
+   ```
+4. **Start the local game server**
+   ```sh
+   npm run dev
+   ```
+5. **Open the URL it prints** — usually <http://localhost:5173/>. Keep the terminal window open while you play; press `Ctrl+C` in it to stop the server.
+
+The 3D models are already included in the repository (`public/models`), so **you do not need Blender**. Progress is saved in your browser's local storage — there is no backend or account.
+
+### Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `vite: command not found` / `npm run dev` fails | You skipped step 3, or ran it in the wrong folder → `cd fishslop` then `npm install` again |
+| `Unsupported engine` / weird errors on start | Node is too old → install Node 20.19+ (or 22.12+) and reopen the terminal |
+| Port already in use | Vite prints a second URL (e.g. `http://localhost:5174/`) — use that one |
+| Page loads but the aquarium won't open ("check WebGL") | Your browser has WebGL2 disabled → test <https://get.webgl.org/webgl2/>; on Chrome enable *Settings → System → Use hardware acceleration*, then relaunch |
+| Blank page / nothing happens | Hard-refresh (`Ctrl+Shift+R` / `Cmd+Shift+R`), and make sure the terminal running `npm run dev` is still open |
+| `localhost` refused to connect | Try <http://127.0.0.1:5173/> instead |
+
+Still stuck? Open an [issue](https://github.com/DingGengJia/fishslop/issues) with the step number and the exact error message.
+
 ## Day and night dives
 
 Use the **☾ 夜晚 / ☀ 白天** switch in the top-right corner. The first visit defaults
