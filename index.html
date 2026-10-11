@@ -1,5 +1,6 @@
 <!doctype html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="theme-color" content="#071e27"/><meta name="description" content="Explore Atlantis in a little submarine. Ancient ruins, a living reef, and a cozy 3D fish-feeding game."/><title>Fishslop — Atlantis</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🐠%3C/text%3E%3C/svg%3E"/></head>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="theme-color" content="#071e27"/><meta name="description" content="Explore Atlantis in a little submarine. Ancient ruins, a living reef, and a cozy 3D fish-feeding game."/><title>Fishslop — Atlantis</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🐠%3C/text%3E%3C/svg%3E"/><script src="%BASE_URL%browser-support.js"></script>
+</head>
 <body>
 <canvas id="world" aria-label="3D Atlantis sanctuary. Use WASD to pilot, Q and E to change depth, arrow keys to look, and Space to feed."></canvas>
 <div class="vignette"></div>
@@ -40,5 +41,7 @@
 <div id="mobile-controls"><div class="direction-pad"><button data-key="KeyW" aria-label="Forward">↑</button><button data-key="KeyA" aria-label="Strafe left">←</button><button data-key="KeyS" aria-label="Backward">↓</button><button data-key="KeyD" aria-label="Strafe right">→</button></div><div><button data-key="KeyE" aria-label="Ascend">＋</button><button data-key="KeyQ" aria-label="Descend">−</button><button data-key="Space">FEED</button></div></div>
 <dialog id="modal"><button id="close-modal" class="close" aria-label="Close dialog">×</button><div class="eyebrow">CAPTAIN'S NOTEBOOK</div><h2 id="modal-title">Make yourself at home.</h2><div id="modal-content"></div><button id="resume" class="primary">Back to the reef <span>↗</span></button></dialog>
 <div id="loading"><div class="loading-fish">↝</div><strong>Discovering Atlantis…</strong><span>Uncovering the ruins. Meeting the neighbors.</span></div>
-<script type="module" src="/src/main.js"></script>
+<script type="module">
+  if (!window.gameBrowserUnsupported) import("/src/main.js");
+</script>
 </body></html>

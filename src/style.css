@@ -31,3 +31,17 @@ header{height:90px;border:0;padding:0 3%;gap:20px}.brand{font-size:28px}.brand s
 
 .ocean-navigation{position:absolute;left:28px;top:92px;display:flex;align-items:center;gap:12px;font-size:11px;color:#a9c8c6}.ocean-navigation strong{color:#d8ede3;font-weight:500}.ocean-navigation button{background:#173e4666;border:1px solid #b2dedb33;border-radius:14px;padding:5px 10px;font-size:10px}.ocean-navigation button:disabled{opacity:.35;cursor:default}
 @media(max-width:760px){.ocean-navigation{top:122px;left:18px;gap:8px;font-size:9px}.ocean-navigation button{font-size:9px;padding:4px 7px}}
+
+/* Tablets have wide viewports but still need touch flight controls. */
+@media (any-pointer:coarse) and (min-width:761px){
+  .controls-strip{display:none}
+  .playing #mobile-controls{display:flex;justify-content:space-between;position:fixed;left:max(24px,env(safe-area-inset-left));right:max(24px,env(safe-area-inset-right));bottom:max(150px,env(safe-area-inset-bottom));z-index:4;pointer-events:none}
+  #mobile-controls button{pointer-events:auto;background:#082d38e6;border:1px solid #b3ddc96b;border-radius:10px;min-width:52px;height:52px;touch-action:none;user-select:none;-webkit-user-select:none}
+  #mobile-controls>div:last-child{display:flex;gap:8px;align-items:end}
+  .direction-pad{display:grid;grid-template-columns:repeat(3,52px);gap:6px}
+  .direction-pad button:first-child{grid-column:2}
+  .direction-pad button:nth-child(2){grid-column:1}
+  .dock{bottom:280px;left:0;max-height:45vh}
+  .dock-open #toast{bottom:220px}
+  #dock-toggle{min-height:44px}
+}
