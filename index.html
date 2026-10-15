@@ -1,11 +1,13 @@
 <!doctype html>
 <html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="theme-color" content="#071e27"/><meta name="description" content="Explore Atlantis in a little submarine. Ancient ruins, a living reef, and a cozy 3D fish-feeding game."/><title>Fishslop — Atlantis</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🐠%3C/text%3E%3C/svg%3E"/><script src="%BASE_URL%browser-support.js"></script>
+<!-- Load the UI before the conditional game import so slow modules cannot flash an unstyled logo. -->
+<link rel="stylesheet" href="/src/style.css"/>
 </head>
 <body>
 <canvas id="world" aria-label="3D Atlantis sanctuary. Use WASD to pilot, Q and E to change depth, arrow keys to look, and Space to feed."></canvas>
 <div class="vignette"></div>
 <header>
-  <a class="brand" href="./" aria-label="Fishslop home"><svg viewBox="0 0 40 30" fill="none"><path d="M29 15c-8-14-20-12-26 0 6 12 18 14 26 0Zm0 0 9-10v20Z" fill="currentColor"/><circle cx="11" cy="12" r="2" fill="#0a2932"/></svg>fishslop<span class="alpha">VOL. 11</span></a>
+  <a class="brand" href="./" aria-label="Fishslop home"><svg width="32" height="24" viewBox="0 0 40 30" fill="none"><path d="M29 15c-8-14-20-12-26 0 6 12 18 14 26 0Zm0 0 9-10v20Z" fill="currentColor"/><circle cx="11" cy="12" r="2" fill="#0a2932"/></svg>fishslop<span class="alpha">VOL. 11</span></a>
   <div class="habitat"><span class="live-dot"></span> ATLANTIS <span class="divider">/</span> THE ENDLESS OCEAN</div>
   <div class="top-actions"><span id="performance" title="自动调整分辨率以保持流畅">-- FPS</span><button id="lighting" class="lighting-button" title="切换白天 / 黑夜" aria-label="切换至白天" aria-pressed="true">☾ 夜晚</button><button id="sound" class="icon-button" title="Toggle sound" aria-label="Enable sound">♪</button><button id="help" class="icon-button" title="Controls" aria-label="Show controls">?</button><button id="pause" class="icon-button" title="Pause (Esc)" aria-label="Pause game">Ⅱ</button></div>
 </header>

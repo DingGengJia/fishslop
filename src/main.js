@@ -1,4 +1,3 @@
-import './style.css';
 import {seabedHeight} from './terrain.js';
 import {createGame,ensureDiversity,tick,STEP,buy,canAddSpecies,feed,price,serialize,restore,clamp} from './simulation.js';
 import {BIOMES,chunkAt,oceanBiome,returnToAtlantis} from './ocean-layout.js';

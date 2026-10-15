@@ -46,6 +46,18 @@ The 3D models are already included in the repository (`public/models`), so **you
 
 Still stuck? Open an [issue](https://github.com/DingGengJia/fishslop/issues) with the step number and the exact error message.
 
+## Loading screen first paint
+
+The main stylesheet loads directly from the HTML head, before the conditional
+game import. The fish logo also has intrinsic dimensions, with responsive CSS
+preserving its aspect ratio. Slow game-script loading therefore keeps the
+styled loading screen instead of flashing a page-sized fish logo.
+
+Validated on 2026-10-15 by withholding game scripts from production builds:
+the old logo measured 1264 × 948 pixels at a 1280 × 720 viewport; the fixed logo
+measured 31 × 23.25 pixels beneath the loading overlay. Normal scene loading,
+50 regression tests, and the `/fishslop/` production build also passed.
+
 ## Day and night dives
 
 Use the **☾ 夜晚 / ☀ 白天** switch in the top-right corner. The first visit defaults
