@@ -58,3 +58,24 @@ saves do not automatically move to the Pages origin. The old local checkout may
 contain recording tools and videos that were not included in this repository;
 move individual needed files deliberately instead of overwriting the standalone
 checkout with the entire old folder.
+
+## gavinding.com release, 2026-10-15
+
+The loading-logo fix from `9462334` is also live at
+https://gavinding.com/game/fishslop/ . The VPS release directory is
+`/srv/fishslop/releases/20261015-loading-9462334`; `/srv/fishslop/current`
+selects it. Build with `/fishslop/` as the base, since the existing Caddy alias
+serves those asset URLs too. Retain the deployed GEO metadata/static description
+and analytics injection when replacing the production HTML.
+
+For this release, fresh GitHub clones were obtained locally because the VPS
+could not authenticate to the private companion repository. The verified source
+package was transferred to the VPS, checked by SHA-256, and built there. Exclude
+macOS AppleDouble files (`._*`) when packaging sources. Only build output and
+runtime models are served; editable Blender files and Git data stay outside the
+release directory. Existing releases remain available for rollback.
+
+The homepage, game directory and guide were rebuilt with the existing Quartz
+publisher. Public checks covered 59 pages/resources across both games, including
+SHA-256 comparisons, and the browser loaded the live fish scene with the logo
+at its intended size.
