@@ -3,13 +3,6 @@
 A playable, cozy 3D underwater game set among the ruins of Atlantis. Pilot a small submarine from a third-person chase camera, feed a neighborhood of fish, collect their coins, and grow your reef.
 
 
-The first playable frame uses a compact 3D mesh set of Atlantis, the submarine and
-all 16 species. The same simulation, controls and save stay active while the
-detailed renderer loads. After changing reef geometry or animal models, rebuild
-the checked-in mesh set with `npm run assets:dive` (local Chrome required).
-Browser performance marks `fishslop-playable` and `fishslop-full-detail` identify
-the two stages. To exercise the transition, run `node tools/check-first-dive.mjs <preview-url>`.
-
 ## Quick start (beginner friendly)
 
 New to Node or to running projects locally? Follow these steps exactly — it takes about 5 minutes.
