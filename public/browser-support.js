@@ -2,7 +2,20 @@
 (function () {
   var unsupported = typeof window.WebGL2RenderingContext === 'undefined';
   window.gameBrowserUnsupported = unsupported;
-  if (!unsupported) return;
+  if (!unsupported) {
+    // Start the model requests while the game module downloads and WebGL starts.
+    // Resolve from this script so both the site wrapper and Pages use the loader's URL.
+    var base = document.currentScript.src.replace(/[^/]+$/, '');
+    ['submarine', 'goldfish', 'azure', 'orchid'].forEach(function (name) {
+      var link = document.createElement('link');
+      link.rel = 'preload';
+      link.as = 'fetch';
+      link.crossOrigin = 'anonymous';
+      link.href = base + 'models/' + name + '-lite.glb';
+      document.head.appendChild(link);
+    });
+    return;
+  }
   document.addEventListener('DOMContentLoaded', function () {
     var screen = document.createElement('section');
     screen.id = 'browser-support';
