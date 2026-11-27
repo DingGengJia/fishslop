@@ -11,7 +11,9 @@ import { speciesOf, adultScale, MAX_RESIDENTS } from './species.js';
 
 export async function createWorld(canvas,{night=false}={}){
   const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
-  renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.setSize(innerWidth,innerHeight);
+  const maxPixelRatio = () => Math.min(devicePixelRatio, 1.5);
+  renderer.setPixelRatio(maxPixelRatio());
+  renderer.setSize(innerWidth, innerHeight);
   renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
   renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   const scene=new THREE.Scene();scene.background=new THREE.Color('#073f53');scene.fog=new THREE.FogExp2('#075164',.033);
@@ -127,7 +129,8 @@ export async function createWorld(canvas,{night=false}={}){
   const bubbleGeometry=new THREE.SphereGeometry(1,12,8),bubbleMaterial=new THREE.MeshPhysicalMaterial({color:'#b1e4df',metalness:.25,roughness:.08,transparent:true,opacity:.23});
   const bubbles=Array.from({length:36},()=>{const m=new THREE.Mesh(bubbleGeometry,bubbleMaterial);m.visible=false;scene.add(m);return {mesh:m,life:0};});let bubbleTimer=0,bubbleIndex=0;
   const cameraGoal=new THREE.Vector3(),lookGoal=new THREE.Vector3(),lookAt=new THREE.Vector3(),pos=new THREE.Vector3(),velocity=new THREE.Vector3(),exhaust=new THREE.Vector3();let initialized=false,focusType=null;let origin={x:0,z:0};
-  let shadowTimer=0,qualityTimer=0,slowTime=0;
+  const pilotDelta = new THREE.Vector3();
+  let shadowTimer = 0, qualityTimer = 0, slowTime = 0, fastTime = 0;
   renderer.shadowMap.autoUpdate=false;
   const metrics={fps:60,drawCalls:0,triangles:0,pixelRatio:renderer.getPixelRatio()};
   function render(g,dt,playing){
@@ -136,6 +139,13 @@ export async function createWorld(canvas,{night=false}={}){
     lighting.update(dt);reef.update(t,s,origin);
     const sx=s.x-origin.x,sz=s.z-origin.z;
     sun.position.set(sx-9,26,sz+9);sun.target.position.set(sx,0,sz);fill.position.set(sx+15,10,sz-16);fill.target.position.set(sx,0,sz);
+    // Move the chase rig with the pilot. Damp changes to the viewing angle
+    // separately so boost and strafing keep the same subject size and framing.
+    if (initialized && playing && focusType === null) {
+      pilotDelta.set(sx - sub.position.x + dx, s.y - sub.position.y, sz - sub.position.z + dz);
+      camera.position.add(pilotDelta);
+      lookAt.add(pilotDelta);
+    }
     sub.position.set(sx,s.y,sz);sub.rotation.set(s.trim??s.pitch,s.heading??s.yaw,(s.bank??0)+Math.sin(t*1.4)*.012,'YXZ');subModel.position.y=Math.sin(t*1.8)*.025;
     const movement = Math.hypot(s.vx, s.vy, s.vz);
     updatePlayerForm(g.playerSpecies ?? null);
@@ -169,11 +179,22 @@ export async function createWorld(canvas,{night=false}={}){
     bubbleTimer+=dt;if(!playerAnimal&&bubbleTimer>.055&&movement>.3){bubbleTimer=0;const b=bubbles[bubbleIndex++%bubbles.length];b.life=1.8;b.mesh.position.copy(sub.position).add(exhaust.set(0,-.05,.8).applyQuaternion(sub.quaternion));}
     for(const b of bubbles){b.life-=dt;b.mesh.visible=b.life>0;if(b.life>0){b.mesh.position.y+=dt*.85;b.mesh.scale.setScalar(.035+(1.8-b.life)*.03);}}
     shadowTimer+=dt;if(shadowTimer>=.10){renderer.shadowMap.needsUpdate=true;shadowTimer=0;}
-    qualityTimer+=dt;slowTime+=dt>.024?dt:0;
-    if(qualityTimer>4){if(slowTime>2&&renderer.getPixelRatio()>.85)renderer.setPixelRatio(Math.max(.85,renderer.getPixelRatio()-.15));qualityTimer=slowTime=0;}
+    qualityTimer += dt;
+    if (dt > .024) slowTime += dt;
+    if (dt < .018) fastTime += dt;
+    if (qualityTimer >= 4) {
+      const ratio = renderer.getPixelRatio();
+      const floor = Math.min(1, devicePixelRatio);
+      if (slowTime > qualityTimer / 2 && ratio > floor) {
+        renderer.setPixelRatio(Math.max(floor, ratio - .15));
+      } else if (fastTime > qualityTimer * .95 && ratio < maxPixelRatio()) {
+        renderer.setPixelRatio(Math.min(maxPixelRatio(), ratio + .15));
+      }
+      qualityTimer = slowTime = fastTime = 0;
+    }
     renderer.render(scene,camera);
     metrics.fps+=(1/Math.max(dt,.001)-metrics.fps)*.04;metrics.drawCalls=renderer.info.render.calls;metrics.triangles=renderer.info.render.triangles;metrics.pixelRatio=renderer.getPixelRatio();metrics.chunks=reef.ocean.count;metrics.chunkSlots=reef.ocean.slots;
   }
-  function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));}
+  function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(maxPixelRatio());}
   addEventListener('resize',resize);return {render,renderer,scene,camera,metrics,setNight:lighting.setNight,resetCamera(){initialized=false;},async prepare(g){reef.update(g.time,g.sub,origin,true);for(const f of g.fish)if(!fishModels.has(f.id))fishModels.set(f.id,fishModel(f));await renderer.compileAsync(scene,camera);},focusSpecies(type){focusType=type;},stopObserving(){focusType=null;}};
 }
