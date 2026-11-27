@@ -22,7 +22,7 @@ export const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const distance = (a,b) => Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z);
 const bounded = (p,clearance=1.3) => { p.x=clamp(p.x,-BOUNDS.x,BOUNDS.x);p.y=clamp(p.y,Math.max(BOUNDS.minY,seabedHeight(p.x,p.z)+clearance),BOUNDS.maxY);p.z=clamp(p.z,-BOUNDS.z,BOUNDS.z); };
 export function createGame(seed=7142) {
-  const g={version:1,seed,time:0,nextId:1,coins:80,earned:0,meals:0,fish:[],food:[],drops:[],events:[],cooldown:0,upgrades:{food:0,speed:0,magnet:0},sub:{x:0,y:7,z:10,yaw:0,pitch:0,vx:0,vy:0,vz:0,heading:0,trim:0,bank:0,lastLookYaw:0,course:0},won:false};
+  const g={version:1,playerSpecies:null,seed,time:0,nextId:1,coins:80,earned:0,meals:0,fish:[],food:[],drops:[],events:[],cooldown:0,upgrades:{food:0,speed:0,magnet:0},sub:{x:0,y:7,z:10,yaw:0,pitch:0,vx:0,vy:0,vz:0,heading:0,trim:0,bank:0,lastLookYaw:0,course:0},won:false};
   for(let i=0;i<5;i++) {
     const f=addFish(g,i%3);
     f.x=[-4.8,-2.3,3.8,5.8,-6.8][i];f.y=[6.3,8.2,6.8,8.8,5.1][i];f.z=[5.6,1.8,4.2,-.5,-1.5][i];
@@ -159,6 +159,7 @@ export function restore(raw) {
     if(!Array.isArray(g.drops)||g.drops.length>100||!g.drops.every(p=>position(p)&&finite(p.age,0,81)&&finite(p.value,1,15)&&finite(p.id,1,1e12)))return null;
     const ids=[...g.fish,...g.food,...g.drops].map(p=>p.id);
     if(new Set(ids).size!==ids.length||g.nextId<=Math.max(...ids))return null;
+    if (!validSpecies(g.playerSpecies)) g.playerSpecies = null;
     // Migrate old saves without discarding the aquarium or its economy.
     for(const [key,fallback,min,max] of [['heading',g.sub.yaw,-1e9,1e9],['trim',g.sub.pitch,-1.05,1.05],['bank',0,-.32,.32],['lastLookYaw',g.sub.yaw,-1e9,1e9],['course',g.sub.heading??g.sub.yaw,-1e9,1e9]]){
       if(g.sub[key]===undefined)g.sub[key]=fallback;

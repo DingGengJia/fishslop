@@ -22,3 +22,19 @@ test('reef milestone triggers exactly once and allows continued play',()=>{const
 test('submarine is pushed outside reef rocks without leaving the tank',()=>{const g=createGame();Object.assign(g.sub,{x:-12,y:2,z:-5});tick(g);const d=Math.hypot((g.sub.x+12)/3.9,(g.sub.y-1.76)/3.16,(g.sub.z+5)/3.26);assert.ok(d>=.999);assert.ok(g.sub.y>=BOUNDS.minY);});
 test('fish can eat food that has settled on the sand',()=>{const g=createGame();g.fish=g.fish.slice(0,1);Object.assign(g.fish[0],{x:0,y:1.3,z:0,hunger:1});g.food=[{id:g.nextId++,x:0,y:.65,z:0,age:1}];tick(g);assert.equal(g.meals,1);assert.equal(g.food.length,0);});
 test('loose shoal returns to the caretaker while retaining all residents',()=>{const g=createGame();g.fish[0].x=-19;g.fish[0].z=-14;const before=Math.hypot(g.fish[0].x-g.sub.x,g.fish[0].z-g.sub.z);run(g,18);assert.ok(Math.hypot(g.fish[0].x-g.sub.x,g.fish[0].z-g.sub.z)<before-5);assert.equal(g.fish.length,5);});
+
+test('player form survives a save and older aquariums default to the submarine', () => {
+  const game = createGame();
+  assert.equal(game.playerSpecies, null);
+  for (const type of [0, 6, 15, null]) {
+    game.playerSpecies = type;
+    assert.equal(restore(serialize(game)).playerSpecies, type);
+  }
+  for (const invalid of [undefined, -1, 99, '3']) {
+    game.playerSpecies = invalid;
+    const restored = restore(serialize(game));
+    assert.equal(restored.playerSpecies, null);
+    assert.equal(restored.coins, game.coins);
+    assert.deepEqual(restored.fish.map(f => f.id), game.fish.map(f => f.id));
+  }
+});

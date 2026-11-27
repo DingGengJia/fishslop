@@ -30,7 +30,9 @@
     <div id="welcome"><p>An ancient city. A new beginning.<br/>Care for the life among the ruins.</p><button id="start" class="primary">Let's dive in <span>↗</span></button><span class="welcome-note">Explore the sunken sanctuary. At your own pace.</span></div>
   </aside>
   <div class="tank-caption"><span class="live-dot"></span><span id="scene-state">ATLANTIS LIVE</span><span class="caption-line"></span><span>24°C</span></div>
-  <div class="ocean-navigation"><strong id="ocean-region">亚特兰蒂斯</strong><span id="seabed-clearance">离底 7.0 m</span><span id="home-distance">0 m · 距起点</span><button id="return-home" disabled>⌂ 返回起点</button></div>
+  <div class="ocean-navigation"><strong id="ocean-region">亚特兰蒂斯</strong><span id="seabed-clearance">离底 7.0 m</span><span id="home-distance">0 m · 距起点</span><button id="return-home" disabled>⌂ 返回起点</button>
+    <label class="player-form">变身<select id="player-form" aria-label="选择游玩形态"><option value="submarine">驾驶潜水艇</option></select></label>
+  </div>
   <aside class="telemetry"><div class="sonar-header"><span class="eyebrow">REEF RADAR</span><span class="live-dot"></span></div><canvas id="radar" width="180" height="180" aria-label="45-meter local radar: fish in orange, coins in gold, submarine in white, home direction in blue"></canvas><div class="depth"><span>DEPTH</span><strong id="depth"><span id="depth-number">13.0</span> <small>m</small></strong></div><div class="health"><span>REEF WELLBEING</span><span id="wellbeing">65%</span><div><i id="wellbeing-bar"></i></div></div></aside>
   <button id="stop-observing" hidden>返回驾驶 · WASD</button><div id="reticle"><i></i><span>SCOUT–01</span></div>
   <div id="toast" role="status" aria-live="polite"></div>

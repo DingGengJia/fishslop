@@ -45,3 +45,31 @@ header{height:90px;border:0;padding:0 3%;gap:20px}.brand{font-size:28px}.brand s
   .dock-open #toast{bottom:220px}
   #dock-toggle{min-height:44px}
 }
+
+.player-form {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  align-items: center;
+  gap: 8px;
+  padding-left: 12px;
+  border: 1px solid #a9d7e04d;
+  border-radius: 12px;
+  background: #0c303bed;
+  color: #d8ede3;
+  font: 13px system-ui;
+  white-space: nowrap;
+}
+.playing .player-form { display: flex; }
+.player-form select {
+  padding: 6px 4px;
+  min-height: 36px;
+  border: 0;
+  border-radius: inherit;
+  background: #17454d;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+@media (any-pointer: coarse) { .player-form select { min-height: 44px; } }

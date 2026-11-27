@@ -43,13 +43,82 @@ export async function createWorld(canvas,{night=false}={}){
   });
   const lighting=createLighting({scene,renderer,hemisphere,sun,fill,headlight,reef,templates,night});
   const instancePools=new Map();
-  function fishModel(f){
-    const group=new THREE.Group(),template=templates[f.type],body=template.body.clone(true);body.rotation.y=Math.PI;group.add(body);
-    const fins=[];body.traverse(o=>{if(!o.isMesh&&/^PectoralPivot/.test(o.name))fins.push(o);});
-    group.rotation.order='YXZ';group.rotation.y=f.yaw;
-    const instanced=f.type>=10,parts=[];
-    if(instanced){if(!instancePools.has(f.type))instancePools.set(f.type,createFishInstances(scene,template.body,MAX_RESIDENTS));body.traverse(o=>{if(o.isMesh)parts.push(o);});}else scene.add(group);
-    return {group,body,instanced,parts,tail:body.getObjectByName('TailPivot'),bell:body.getObjectByName('BellPivot'),arms:body.getObjectByName('ArmsPivot'),fins,length:template.length,swimPhase:f.id*1.7,swimSpeed:0,previous:new THREE.Vector3(f.x-origin.x,f.y,f.z-origin.z)};
+  function animatedFish(type, phase) {
+    const template = templates[type];
+    const group = new THREE.Group();
+    const body = template.body.clone(true);
+    body.rotation.y = Math.PI;
+    group.rotation.order = 'YXZ';
+    group.add(body);
+    const fins = [];
+    body.traverse(part => {
+      if (!part.isMesh && part.name.startsWith('PectoralPivot')) fins.push(part);
+    });
+    return {
+      group, body, fins, length: template.length, swimPhase: phase, swimSpeed: 0,
+      tail: body.getObjectByName('TailPivot'), bell: body.getObjectByName('BellPivot'),
+      arms: body.getObjectByName('ArmsPivot'),
+    };
+  }
+
+  function swimAnimation(model, species, speed, dt) {
+    model.swimSpeed += (speed - model.swimSpeed) * (1 - Math.exp(-dt * 4));
+    const effort = Math.min(1, model.swimSpeed / 2.5);
+    const cadence = species.cadence ?? [1, .94, 1.06, 1.5, .60, .55, .30][species.id];
+    // Integrate phase so speed changes never snap the tail to a new angle.
+    model.swimPhase = (model.swimPhase + dt * (7.2 + effort * 3.2) * cadence) % (Math.PI * 2);
+    const swim = model.swimPhase;
+    model.body.rotation.z = Math.sin(swim - .8) * .026;
+    model.body.rotation.y = Math.PI + Math.sin(swim - .65) * (.055 + effort * .025);
+
+    if (model.tail) {
+      if (species.kind === 'dolphin' || species.kind === 'whale') {
+        model.tail.rotation.x = Math.sin(swim) * (.26 + effort * .10);
+      } else {
+        const amplitude = species.kind === 'shark' ? .28 + effort * .1 : .56 + effort * .16;
+        model.tail.rotation.y = Math.sin(swim) * amplitude;
+      }
+    }
+    if (model.bell) {
+      const pulse = Math.sin(swim);
+      model.bell.scale.set(1 - pulse * .075, 1 + pulse * .15, 1 - pulse * .075);
+      model.arms.rotation.z = Math.sin(swim - .8) * .07;
+      model.body.rotation.y = Math.PI;
+      model.body.rotation.z = Math.sin(swim * .7) * .025;
+    }
+    const finAmplitude = species.kind === 'whale' ? .08 : species.kind === 'ray' ? .28 :
+      species.kind === 'turtle' ? .38 : .30 + effort * .08;
+    for (let i = 0; i < model.fins.length; i++) {
+      model.fins[i].rotation.z = Math.sin(swim + .65 + i * Math.PI) * finAmplitude;
+    }
+  }
+
+  function fishModel(f) {
+    const model = animatedFish(f.type, f.id * 1.7);
+    model.group.rotation.y = f.yaw;
+    model.previous = new THREE.Vector3(f.x - origin.x, f.y, f.z - origin.z);
+    model.instanced = f.type >= 10;
+    if (model.instanced) {
+      if (!instancePools.has(f.type)) instancePools.set(f.type, createFishInstances(scene, templates[f.type].body, MAX_RESIDENTS));
+      model.parts = [];
+      model.body.traverse(part => { if (part.isMesh) model.parts.push(part); });
+    } else scene.add(model.group);
+    return model;
+  }
+
+  let playerSpecies = null, playerAnimal = null;
+  function updatePlayerForm(type) {
+    if (type === playerSpecies) return;
+    if (playerAnimal) sub.remove(playerAnimal.group);
+    playerSpecies = type;
+    playerAnimal = type === null ? null : animatedFish(type, 0);
+    subModel.visible = headlight.visible = playerAnimal === null;
+    if (playerAnimal) {
+      // Fit the controllable animal to the hull's footprint and chase camera.
+      const length = THREE.MathUtils.clamp(speciesOf(type).length, 1.0, 2.6);
+      playerAnimal.group.scale.setScalar(length / playerAnimal.length);
+      sub.add(playerAnimal.group);
+    }
   }
   function sync(map,data,make,update){
     const ids=new Set(data.map(d=>d.id));for(const[id,obj]of map)if(!ids.has(id)){scene.remove(obj.group||obj);map.delete(id);}
@@ -68,23 +137,18 @@ export async function createWorld(canvas,{night=false}={}){
     const sx=s.x-origin.x,sz=s.z-origin.z;
     sun.position.set(sx-9,26,sz+9);sun.target.position.set(sx,0,sz);fill.position.set(sx+15,10,sz-16);fill.target.position.set(sx,0,sz);
     sub.position.set(sx,s.y,sz);sub.rotation.set(s.trim??s.pitch,s.heading??s.yaw,(s.bank??0)+Math.sin(t*1.4)*.012,'YXZ');subModel.position.y=Math.sin(t*1.8)*.025;
-    const movement=Math.hypot(s.vx,s.vy,s.vz);rotor.rotation.z+=dt*(4+movement*5);
+    const movement = Math.hypot(s.vx, s.vy, s.vz);
+    updatePlayerForm(g.playerSpecies ?? null);
+    if (playerAnimal) swimAnimation(playerAnimal, speciesOf(playerSpecies), movement, dt);
+    else rotor.rotation.z += dt * (4 + movement * 5);
     sync(fishModels,g.fish,fishModel,(m,f)=>{
       pos.set(f.x-origin.x,f.y,f.z-origin.z);velocity.copy(pos).sub(m.previous);m.previous.copy(pos);m.group.position.copy(pos);
       const delta=Math.atan2(Math.sin(f.yaw-m.group.rotation.y),Math.cos(f.yaw-m.group.rotation.y));m.group.rotation.y+=delta*(1-Math.exp(-dt*5));
       const pitch=velocity.length()>.003?Math.atan2(velocity.y,Math.hypot(velocity.x,velocity.z)):0;m.group.rotation.x+=(THREE.MathUtils.clamp(pitch,-.5,.5)-m.group.rotation.x)*Math.min(1,dt*4);
       const sp=speciesOf(f.type),size=sp.length/m.length*adultScale(f.growth);m.group.scale.setScalar(size);
       const speed=Math.min(4,velocity.length()/Math.max(dt,.001));
-      m.swimSpeed+=(speed-m.swimSpeed)*(1-Math.exp(-dt*4));
-      const effort=Math.min(1,m.swimSpeed/2.5),cadence=sp.cadence??[1,.94,1.06,1.5,.60,.55,.30][f.type];
-      // Integrate phase so speed changes never snap the tail to a new angle.
-      m.swimPhase=(m.swimPhase+dt*(7.2+effort*3.2)*cadence)%(Math.PI*2);
-      const swim=m.swimPhase;
-      m.body.rotation.z=Math.sin(swim-.8)*.026;
-      m.body.rotation.y=Math.PI+Math.sin(swim-.65)*(.055+effort*.025);
-      if(m.tail){if(sp.kind==='dolphin'||sp.kind==='whale')m.tail.rotation.x=Math.sin(swim)*(.26+effort*.10);else m.tail.rotation.y=Math.sin(swim)*(sp.kind==='shark'?.28+effort*.1:.56+effort*.16);}
-      if(m.bell){m.group.rotation.x=0;const pulse=Math.sin(swim);m.bell.scale.set(1-pulse*.075,1+pulse*.15,1-pulse*.075);m.arms.rotation.z=Math.sin(swim-.8)*.07;m.body.rotation.y=Math.PI;m.body.rotation.z=Math.sin(swim*.7)*.025;}
-      for(let i=0;i<m.fins.length;i++)m.fins[i].rotation.z=Math.sin(swim+.65+i*Math.PI)*(sp.kind==='whale'?.08:sp.kind==='ray'?.28:sp.kind==='turtle'?.38:.30+effort*.08);
+      if (m.bell) m.group.rotation.x = 0;
+      swimAnimation(m, sp, speed, dt);
     });
     sync(foodModels,g.food,()=>{const m=new THREE.Mesh(foodGeo,foodMat);scene.add(m);return m;},(m,p)=>{m.position.set(p.x-origin.x,p.y,p.z-origin.z);m.rotation.set(t*.8,p.id,t*.4);});
     sync(coinModels,g.drops,()=>{const group=new THREE.Group();group.add(new THREE.Mesh(coinGeo,coinMat));for(const z of [-.04,.04]){const rim=new THREE.Mesh(ringGeo,ringMat);rim.position.z=z;group.add(rim);const numeral=new THREE.Mesh(numberGeo,ringMat);numeral.position.z=z;group.add(numeral);}scene.add(group);return group;},(m,c)=>{m.position.set(c.x-origin.x,c.y+Math.sin(t*2+c.id)*.08,c.z-origin.z);m.rotation.y=t*1.4+c.id;});
@@ -102,7 +166,7 @@ export async function createWorld(canvas,{night=false}={}){
     if(observed){const distance=Math.max(.30,speciesOf(observed.type).length*(speciesOf(observed.type).length>=6?.95:1.8));cameraGoal.set(observed.x-origin.x+distance*.85,observed.y+distance*.28,observed.z-origin.z+distance*.8);lookGoal.set(observed.x-origin.x,observed.y,observed.z-origin.z);clampCameraPosition(cameraGoal,origin);}
     if(!initialized){camera.position.copy(cameraGoal);lookAt.copy(lookGoal);initialized=true;}
     camera.position.lerp(cameraGoal,1-Math.exp(-dt*(observed?8:3)));lookAt.lerp(lookGoal,1-Math.exp(-dt*(observed?12:5)));clampCameraPosition(camera.position,origin);camera.lookAt(lookAt);
-    bubbleTimer+=dt;if(bubbleTimer>.055&&movement>.3){bubbleTimer=0;const b=bubbles[bubbleIndex++%bubbles.length];b.life=1.8;b.mesh.position.copy(sub.position).add(exhaust.set(0,-.05,.8).applyQuaternion(sub.quaternion));}
+    bubbleTimer+=dt;if(!playerAnimal&&bubbleTimer>.055&&movement>.3){bubbleTimer=0;const b=bubbles[bubbleIndex++%bubbles.length];b.life=1.8;b.mesh.position.copy(sub.position).add(exhaust.set(0,-.05,.8).applyQuaternion(sub.quaternion));}
     for(const b of bubbles){b.life-=dt;b.mesh.visible=b.life>0;if(b.life>0){b.mesh.position.y+=dt*.85;b.mesh.scale.setScalar(.035+(1.8-b.life)*.03);}}
     shadowTimer+=dt;if(shadowTimer>=.10){renderer.shadowMap.needsUpdate=true;shadowTimer=0;}
     qualityTimer+=dt;slowTime+=dt>.024?dt:0;

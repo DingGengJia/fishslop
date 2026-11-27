@@ -32,6 +32,16 @@ const speciesSelect=$('species-select');
 speciesSelect.innerHTML=SPECIES.map(sp=>`<option value="${sp.id}">${sp.name} · ${sizeLabel(sp)}</option>`).join('');speciesSelect.value='3';
 function selectSpecies(){const sp=speciesOf(Number(speciesSelect.value));shopButtons[0].dataset.buy='fish:'+sp.id;$('friend-name').textContent=sp.name;$('friend-size').textContent=sizeLabel(sp);updateHUD();}
 function stopObserving(){world?.stopObserving();$('stop-observing').hidden=true;}
+const formSelect = $('player-form');
+for (const species of SPECIES) formSelect.add(new Option(species.name, String(species.id)));
+formSelect.value = game.playerSpecies === null ? 'submarine' : String(game.playerSpecies);
+formSelect.onchange = () => {
+  game.playerSpecies = formSelect.value === 'submarine' ? null : Number(formSelect.value);
+  stopObserving();
+  keys.clear();
+  formSelect.blur();
+  save();
+};
 speciesSelect.onchange=selectSpecies;
 $('observe-species').onclick=()=>{const type=Number(speciesSelect.value);if(!game.fish.some(f=>f.type===type)){toast('这种生物还没有入住，可在码头添加。');return;}if(!playing)$('start').click();world?.focusSpecies(type);$('stop-observing').textContent=speciesOf(type).name+' · 返回驾驶';$('stop-observing').hidden=false;document.body.classList.remove('dock-open');$('dock-toggle').setAttribute('aria-expanded','false');$('dock-toggle').setAttribute('aria-label','Open aquarium shop');};
 $('stop-observing').onclick=stopObserving;
