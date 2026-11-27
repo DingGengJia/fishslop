@@ -3,7 +3,8 @@ import {mergeVertices} from 'three/addons/utils/BufferGeometryUtils.js';
 import {createWhale} from './whale-model.js';
 import {turtleShellMaterial} from './turtle-shell.js';
 // Original lightweight geometry. All swimming animals face +Z before the scene's yaw flip.
-export function createSpeciesModels(){
+export function createSpeciesModels(){return Array.from(buildSpeciesModels());}
+export function* buildSpeciesModels(){
   const standard=(color,extra={})=>new THREE.MeshStandardMaterial({color,roughness:.48,...extra});
   const dark=standard('#13272d'),white=standard('#f6ead5'),sharkSkin=standard('#7c9492'),dolphinSkin=standard('#748f9b');
   const sphere=new THREE.SphereGeometry(1,12,8),wetEye=standard('#0b1a20',{roughness:.16});wetEye.userData.preserveSurface=true;
@@ -175,5 +176,14 @@ export function createSpeciesModels(){
     for(const side of [-1,1]){const pivot=group(root,'PectoralPivot'+side,[side*.17,-.1,.25]);const f=fin(pivot,[[0,0],[side*.24,-.12],[side*.15,-.27],[0,-.08]],finMat);f.rotation.x=.5;}
     return root;
   }
-  return [clown(),predator(false),predator(true),jelly(),createWhale(),manta(),turtle(),smallFish(false),smallFish(true),reefFish(0),reefFish(1),reefFish(2),reefFish(3)];
+  yield clown();
+  yield predator(false);
+  yield predator(true);
+  yield jelly();
+  yield createWhale();
+  yield manta();
+  yield turtle();
+  yield smallFish(false);
+  yield smallFish(true);
+  for(let kind=0;kind<4;kind++) yield reefFish(kind);
 }

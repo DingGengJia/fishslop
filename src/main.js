@@ -1,7 +1,7 @@
 import {seabedHeight} from './terrain.js';
 import {createGame,ensureDiversity,tick,STEP,buy,canAddSpecies,feed,price,serialize,restore,clamp} from './simulation.js';
 import {BIOMES,chunkAt,oceanBiome,returnToAtlantis} from './ocean-layout.js';
-import {createWorld} from './scene.js';
+import {createDiveView} from './dive-view.js';
 import {SPECIES,MAX_RESIDENTS,speciesOf,sizeLabel} from './species.js';
 const $=id=>document.getElementById(id);
 const SAVE_KEY='fishslop.aquarium.v1';
@@ -11,7 +11,7 @@ let game=saved||createGame(),playing=false,paused=false,muted=true,audioContext=
 const newArrivals=ensureDiversity(game);
 document.addEventListener('click',e=>{const button=e.target.closest?.('button');if(button&&!$('modal').open)button.blur();});
 const keys=new Set();let drag=null,toastTimer=0,last=performance.now(),accumulator=0,hudTimer=0,saveTimer=0;
-let world;
+let world, observedSpecies = null;
 const LIGHTING_KEY='fishslop.lighting.v1';
 let nightMode=false;
 try{nightMode=localStorage.getItem(LIGHTING_KEY)==='night';}catch{}
@@ -31,7 +31,7 @@ const shopButtons=[...document.querySelectorAll('[data-buy]')];
 const speciesSelect=$('species-select');
 speciesSelect.innerHTML=SPECIES.map(sp=>`<option value="${sp.id}">${sp.name} · ${sizeLabel(sp)}</option>`).join('');speciesSelect.value='3';
 function selectSpecies(){const sp=speciesOf(Number(speciesSelect.value));shopButtons[0].dataset.buy='fish:'+sp.id;$('friend-name').textContent=sp.name;$('friend-size').textContent=sizeLabel(sp);updateHUD();}
-function stopObserving(){world?.stopObserving();$('stop-observing').hidden=true;}
+function stopObserving(){observedSpecies=null;world?.stopObserving();$('stop-observing').hidden=true;}
 const formSelect = $('player-form');
 for (const species of SPECIES) formSelect.add(new Option(species.name, String(species.id)));
 formSelect.value = game.playerSpecies === null ? 'submarine' : String(game.playerSpecies);
@@ -43,7 +43,7 @@ formSelect.onchange = () => {
   save();
 };
 speciesSelect.onchange=selectSpecies;
-$('observe-species').onclick=()=>{const type=Number(speciesSelect.value);if(!game.fish.some(f=>f.type===type)){toast('这种生物还没有入住，可在码头添加。');return;}if(!playing)$('start').click();world?.focusSpecies(type);$('stop-observing').textContent=speciesOf(type).name+' · 返回驾驶';$('stop-observing').hidden=false;document.body.classList.remove('dock-open');$('dock-toggle').setAttribute('aria-expanded','false');$('dock-toggle').setAttribute('aria-label','Open aquarium shop');};
+$('observe-species').onclick=()=>{const type=Number(speciesSelect.value);if(!game.fish.some(f=>f.type===type)){toast('这种生物还没有入住，可在码头添加。');return;}if(!playing)$('start').click();observedSpecies=type;world?.focusSpecies(type);$('stop-observing').textContent=speciesOf(type).name+' · 返回驾驶';$('stop-observing').hidden=false;document.body.classList.remove('dock-open');$('dock-toggle').setAttribute('aria-expanded','false');$('dock-toggle').setAttribute('aria-label','Open aquarium shop');};
 $('stop-observing').onclick=stopObserving;
 const controls=`<p>Look after a little underwater neighborhood. Drop food, watch your fish grow, and swim near their golden coins to collect them.</p><div class="control-list"><span>W A S D</span><span>Move relative to the camera</span><span>Q / E</span><span>Dive / rise</span><span>Arrow keys</span><span>Turn & tilt the submarine</span><span>Drag the water</span><span>Look and steer</span><span>Space</span><span>Drop food (free!)</span><span>Shift</span><span>Boost</span><span>B</span><span>Open / close the dock</span><span>Esc</span><span>Pause / resume</span></div><p>Every 3 meals, a fish grows. Bigger fish make better coins. Hungry fish stop earning until fed. Follow the gold dots on your radar, and build a reef of 10 fish with 500 coins collected.</p>`;
 if(saved){$('start').innerHTML='Welcome back <span>↗</span>';$('welcome').querySelector('p').innerHTML='Your little neighbors<br/>are happy to see you.';}
@@ -68,7 +68,7 @@ $('dock-toggle').onclick=()=>{
   $('dock-toggle').setAttribute('aria-expanded',String(open));
   $('dock-toggle').setAttribute('aria-label',open?'Close aquarium shop':'Open aquarium shop');
 };
-$('start').onclick=()=>{playing=true;document.body.classList.add('playing');$('start').blur();toast(newArrivals?'新居民已入住！按 B 选择物种，近距离观察。':'Welcome aboard. Hold Space to ring the dinner bell.');initAudio();audioState();};
+$('start').onclick=()=>{playing=true;document.body.classList.add('playing');$('start').blur();toast(newArrivals?'新居民已入住！按 B 选择物种，近距离观察。':'Welcome aboard. Hold Space to ring the dinner bell.');audioState();};
 for(const button of shopButtons)button.onclick=()=>{
   const item=button.dataset.buy;
   if(!playing){$('start').click();}
@@ -142,8 +142,61 @@ function frame(now){const dt=Math.min((now-last)/1000,.1);last=now;
   hudTimer+=dt;if(hudTimer>.1){hudTimer=0;updateHUD();drawRadar();}
   requestAnimationFrame(frame);
 }
-try{
-  world=await createWorld(canvas,{night:nightMode});world.setNight(nightMode);await world.prepare(game);selectSpecies();if(newArrivals)save();$('loading').remove();updateHUD();drawRadar();last=performance.now();requestAnimationFrame(frame);
-  // Read-only development telemetry for reproducible browser smoke tests.
-  if(import.meta.env.DEV)window.__fishslop={snapshot:()=>JSON.parse(serialize(game)),status:()=>({playing,paused,drawCalls:world.renderer.info.render.calls,triangles:world.renderer.info.render.triangles})};
-}catch(error){console.error(error);$('loading').innerHTML='<strong>The aquarium couldn’t open.</strong><span>Check that WebGL is enabled, then reload to try again.</span><button class="primary" onclick="location.reload()">Try again ↗</button>';}
+function showStartupError(error) {
+  console.error(error);
+  $('loading').innerHTML='<strong>The aquarium couldn’t open.</strong><span>Check that WebGL is enabled, then reload to try again.</span><button class="primary" onclick="location.reload()">Try again ↗</button>';
+}
+
+function beginPlay(view) {
+  world=view;
+  selectSpecies();
+  if(newArrivals)save();
+  updateHUD();drawRadar();
+  world.render(game,0,false);
+  $('loading').remove();
+  performance.mark('fishslop-playable');
+  last=performance.now();requestAnimationFrame(frame);
+  if(import.meta.env.DEV)window.__fishslop={
+    snapshot:()=>JSON.parse(serialize(game)),
+    status:()=>({playing,paused,drawCalls:world.renderer?.info.render.calls??0,triangles:world.renderer?.info.render.triangles??0})
+  };
+}
+
+async function loadDetailedWorld() {
+  for (const name of ['submarine','goldfish','azure','orchid']) {
+    const preload=document.createElement('link');
+    preload.rel='preload';preload.as='fetch';preload.crossOrigin='anonymous';
+    preload.href=import.meta.env.BASE_URL+'models/'+name+'-lite.glb';
+    document.head.appendChild(preload);
+  }
+  const {createWorld}=await import('./scene.js');
+  const detail=await createWorld(canvas,{night:nightMode});
+  await detail.prepare(game);
+  detail.setNight(nightMode);
+  if(observedSpecies!==null)detail.focusSpecies(observedSpecies);
+  if (world) {
+    detail.render(game,0,playing);
+    const previous=world;
+    world=detail;
+    previous.dispose();
+  } else beginPlay(detail);
+  performance.mark('fishslop-full-detail');
+}
+
+export async function startGame(meshes) {
+  const data=await meshes;
+  if(data) {
+    try {
+      beginPlay(createDiveView(canvas,nightMode,data));
+    } catch(error) {
+      console.warn('Starting with the detailed renderer',error);
+    }
+  }
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    loadDetailedWorld().catch(error=>{
+      if(!world){showStartupError(error);return;}
+      console.error(error);
+      toast('精细场景加载失败，可继续游玩或刷新重试。');
+    });
+  }));
+}

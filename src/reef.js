@@ -23,7 +23,7 @@ export function batchMeshes(root,excluded=[],includeTransparent=false){
   }
 }
 
-export function createReef(parent){
+export async function createReef(parent, yieldFrame = () => {}){
   const scene=new THREE.Group();parent.add(scene);
   let seed=415;const rand=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
   const clock={value:0},night={value:0},plants=[],materials=new Map();
@@ -54,6 +54,7 @@ export function createReef(parent){
   // Warm sand, fine granular bump, and a live projected caustic network.
   const canvas=document.createElement('canvas');canvas.width=canvas.height=1024;const ctx=canvas.getContext('2d');ctx.fillStyle='#b9aa7d';ctx.fillRect(0,0,1024,1024);
   for(let i=0;i<115000;i++){const n=rand();ctx.fillStyle=n>.5?'rgba(249,237,185,.2)':'rgba(83,91,69,.16)';const r=.4+rand()*1.3;ctx.fillRect(rand()*1024,rand()*1024,r,r);}
+  await yieldFrame();
   const texture=new THREE.CanvasTexture(canvas);texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(1,1);texture.colorSpace=THREE.SRGBColorSpace;
   const floorMat=caustics(new THREE.MeshStandardMaterial({map:texture,bumpMap:texture,bumpScale:.06,roughness:.92,vertexColors:true}),.25);
   const water=new THREE.ShaderMaterial({uniforms:{time:clock,night},side:THREE.DoubleSide,transparent:true,depthWrite:false,
@@ -168,6 +169,7 @@ export function createReef(parent){
   }
   clam(4.5,7.3);clam(-11,-1);
   for(const [index,[x,z,s]]of REEFS.entries()){
+    await yieldFrame();
     rock(x,z,s);rock(x+s*.7,z+1,s*.65);rock(x-1,z+s*.6,s*.55);
     branchingCoral(x+s*.65,z+s*.86,3.1+rand(),['#e8909c','#d67bb2','#deb687'][index%3]);
     sponge(x-s*.65,z+s*.55,index%2?'#c5a368':'#c49974');
@@ -199,12 +201,14 @@ export function createReef(parent){
     for(let a=0;a<5;a++){const angle=a*Math.PI*2/5;tube([[0,.04,0],[Math.sin(angle)*.17,.06,Math.cos(angle)*.17],[Math.sin(angle)*.42,.015,Math.cos(angle)*.42]],.055,mat('#dba381'),g);}
     mesh(sphere,mat('#dba381'),[0,.04,0],[.17,.065,.17],g);
   }
+  await yieldFrame();
   const atlantis=createAtlantis(scene,caustics);
   // Tall kelp grows among the outer colonnades.
   kelp(-5,-15.6,8.2);kelp(18,-14.6,7.5);kelp(-18,1,8.8);
+  await yieldFrame();
   batchMeshes(scene,[surface,sunrays,...plants.map(p=>p.object),...atlantis.animatedObjects]);
   for(const object of atlantis.animatedObjects)batchMeshes(object,object.children.filter(o=>o.geometry?.type==='OctahedronGeometry'));
-  for(const plant of plants){batchMeshes(plant.object);applyCurrent(plant.object,clock,plant);}
+  for(const plant of plants){await yieldFrame();batchMeshes(plant.object);applyCurrent(plant.object,clock,plant);}
   const dustPositions=new Float32Array(650*3);for(let i=0;i<650;i++){dustPositions[i*3]=(rand()-.5)*48;dustPositions[i*3+1]=rand()*21;dustPositions[i*3+2]=(rand()-.5)*36;}
   const dustGeo=new THREE.BufferGeometry();dustGeo.setAttribute('position',new THREE.BufferAttribute(dustPositions,3));
   const dust=new THREE.Points(dustGeo,new THREE.PointsMaterial({color:'#e2edbc',size:.035,transparent:true,opacity:.45,depthWrite:false}));scene.add(dust);

@@ -4,7 +4,7 @@ import { clampCameraPosition, renderOrigin } from './world-bounds.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createReef, batchMeshes } from './reef.js';
-import { createSpeciesModels } from './species-models.js';
+import { buildSpeciesModels } from './species-models.js';
 import { prepareSpeciesModel } from './model-preparation.js';
 import {createFishInstances} from './fish-instances.js';
 import { speciesOf, adultScale, MAX_RESIDENTS } from './species.js';
@@ -23,7 +23,14 @@ export async function createWorld(canvas,{night=false}={}){
   const sun=new THREE.DirectionalLight('#fff0cf',2.6);sun.position.set(-9,26,9);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);
   Object.assign(sun.shadow.camera,{left:-27,right:27,top:27,bottom:-27,near:1,far:70});sun.shadow.bias=-.0003;sun.shadow.normalBias=.045;scene.add(sun,sun.target);
   const fill=new THREE.DirectionalLight('#8dd6e5',.70);fill.position.set(15,10,-16);scene.add(fill,fill.target);
-  const reef=createReef(scene);
+  // Let the playable view process input and paint between geometry batches.
+  let lastYield=performance.now();
+  function yieldFrame() {
+    if(performance.now()-lastYield<12)return;
+    return new Promise(resolve=>requestAnimationFrame(()=>{lastYield=performance.now();resolve();}));
+  }
+  await yieldFrame();
+  const reef=await createReef(scene,yieldFrame);
   const loader=new GLTFLoader(),base=import.meta.env.BASE_URL;
   const [subAsset,...fishAssets]=await Promise.all(['submarine-lite','goldfish-lite','azure-lite','orchid-lite'].map(name=>loader.loadAsync(`${base}models/${name}.glb`)));
   const sub=new THREE.Group();scene.add(sub);const subModel=subAsset.scene;subModel.scale.setScalar(.34);subModel.rotation.y=Math.PI;sub.add(subModel);
@@ -40,9 +47,15 @@ export async function createWorld(canvas,{night=false}={}){
   const ringGeo=new THREE.TorusGeometry(.185,.014,5,28);const ringMat=new THREE.MeshStandardMaterial({color:'#fff0b5',metalness:.6,roughness:.28});
   const numberGeo=new THREE.BoxGeometry(.026,.22,.018);
   // Prepare each species once, then share its geometry/materials across residents.
-  const templates=[...fishAssets.map(a=>a.scene),...createSpeciesModels()].map((body,type)=>{
-    return prepareSpeciesModel(body,type,renderer.capabilities.getMaxAnisotropy());
-  });
+  const templates=[];
+  function* bodies() {
+    for(const asset of fishAssets) yield asset.scene;
+    yield* buildSpeciesModels();
+  }
+  for(const body of bodies()){
+    templates.push(prepareSpeciesModel(body,templates.length,renderer.capabilities.getMaxAnisotropy()));
+    await yieldFrame();
+  }
   const lighting=createLighting({scene,renderer,hemisphere,sun,fill,headlight,reef,templates,night});
   const instancePools=new Map();
   function animatedFish(type, phase) {

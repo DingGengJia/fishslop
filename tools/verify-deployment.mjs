@@ -20,6 +20,7 @@ await page.locator('[data-buy="fish:3"]').click();
  await page.getByRole('button',{name:'Pause game',exact:true}).click();
  await page.locator('dialog[open]').waitFor();
  await page.getByRole('button',{name:'Back to the reef'}).click();
+ await page.waitForFunction(()=>performance.getEntriesByName('fishslop-full-detail').length,null,{timeout:60000});
  await page.screenshot({path:'artifacts/deployed-vps.png'});
  await page.reload();await page.locator('#loading').waitFor({state:'detached',timeout:60000});
  if(await page.locator('#population').textContent()!==expected)throw new Error('Progress did not persist');

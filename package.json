@@ -9,6 +9,7 @@
     "preview": "vite preview --host 0.0.0.0",
     "test": "node --test tests/*.test.js",
     "assets": "blender --background --python tools/create_assets.py",
+    "assets:dive": "node tools/build-dive-meshes.mjs",
     "assets:optimize": "blender --background --python tools/optimize_assets.py && python3 tools/pack_runtime_models.py"
   },
   "dependencies": { "three": "^0.180.0" },
